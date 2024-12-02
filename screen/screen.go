@@ -59,6 +59,11 @@ func Get() *Screen {
 	return screen
 }
 
+// Return Screen Rect without Minibuffer
+func (s *Screen) RootRect() utils.Rect {
+	return utils.Rect{X: 0, Y: 0, Width: s.Width, Height: s.Height - 1}
+}
+
 // ShowCursor sets the cursor position to (x, y).
 func (s *Screen) ShowCursor(x, y int) {
 	s.CX, s.CY = x, y

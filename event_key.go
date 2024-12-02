@@ -24,9 +24,9 @@ func KeyMapper() *KeyPointer {
 }
 
 type KeyPointer struct {
-	root             *keyMap // ルートキーマップ
-	current          *keyMap
-	extendedFunction *ExtendedFunctionInterface
+	root    *keyMap // ルートキーマップ
+	current *keyMap
+	// extendedFunction *ExtendedFunctionInterface
 }
 
 type Key int64
@@ -70,7 +70,6 @@ func (kp *KeyPointer) Bind(keys []string, fn any) {
 
 	for i := 0; i < len(keys); i++ {
 		s := keys[i]
-		// md, ky, ch, err := cbind.Decode(s)
 		md, ky, ch, err := Decode(s)
 		if err != nil {
 			// verb.PP("%#v", err)
@@ -146,6 +145,7 @@ func (kp *KeyPointer) Execute(tKey *tcell.EventKey, skipExtendedFunction bool) e
 		kp.ResetKeyMapInAllInstance()
 		return ErrCodeExtendedFunction
 	case keyMap:
+		//screen.Get().Echo(fmt.Sprintf("echo-key %v, %v, %v", tKey.Modifiers(), tKey.Key(), tKey.Rune()))
 		kp.current = &e
 		return ErrCodeKeyBound
 	default:

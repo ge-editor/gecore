@@ -25,9 +25,9 @@ Platforms:
 // ViewLeaf common kill buffer
 var KillBuffer = &killBuffer{}
 
-type killBuffer [][]rune
+type killBuffer [][]byte
 
-func (kb *killBuffer) PushKillBuffer(buff []rune) error {
+func (kb *killBuffer) PushKillBuffer(buff []byte) error {
 	*kb = append(*kb, buff)
 
 	err := clipboard.WriteAll(string(buff))
@@ -37,7 +37,7 @@ func (kb *killBuffer) PushKillBuffer(buff []rune) error {
 	return err
 }
 
-func (kb *killBuffer) PopKillBuffer() []rune {
+func (kb *killBuffer) PopKillBuffer() []byte {
 	l := len(*kb)
 	if l == 0 {
 		return nil
@@ -47,13 +47,13 @@ func (kb *killBuffer) PopKillBuffer() []rune {
 	return buff
 }
 
-func (kb *killBuffer) GetLast() []rune {
+func (kb *killBuffer) GetLast() []byte {
 	return kb.Get(len(*kb) - 1)
 }
 
 // Get retrieves the element at the specified index in the buffer,
 // and then moves that element to the end of the buffer.
-func (kb *killBuffer) Get(index int) []rune {
+func (kb *killBuffer) Get(index int) []byte {
 	l := len(*kb)
 	if index < 0 || index >= l {
 		return nil

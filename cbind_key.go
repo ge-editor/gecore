@@ -75,12 +75,6 @@ func Decode(s string) (mod tcell.ModMask, key tcell.Key, ch rune, err error) {
 		return 0, 0, 0, ErrInvalidKeyEvent
 	}
 
-	// Backspace
-	// Ctrl+H
-	if mod == 0 && key == 8 && ch == 8 {
-		return mod, key, ch, nil
-	}
-
 	// Special case for plus rune decoding
 	if s[len(s)-1:] == "+" {
 		key = tcell.KeyRune
@@ -155,21 +149,26 @@ DECODEPIECE:
 		if ok {
 			key = k
 			if UnifyEnterKeys && key == ctrlKeys['j'] {
-				key = tcell.KeyEnter
+				// key = tcell.KeyEnter
+				// verb.PP("ctrl j 1")
+				key = tcell.KeyCtrlJ
 			} else if key < 0x80 {
 				ch = rune(key)
 			}
 		}
 	}
 
-	// Backspace
-	// Ctrl+H
-	// if mod == 0 && key == 127 && ch == 127 {
-	//   		return mod, 8, 8, nil
-	//   	}
 	switch key {
 	case tcell.KeyEsc:
 		ch = 0
+	case tcell.KeyBS:
+		// Enable Ctrl+H
+		mod = 0
+	case tcell.KeyCtrlJ:
+		// Enable Ctrl+J
+		mod = tcell.ModCtrl
+		//ch = 'j'
+		// ch = 0
 	}
 	return mod, key, ch, nil
 }

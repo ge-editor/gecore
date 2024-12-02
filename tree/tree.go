@@ -205,6 +205,7 @@ func (tr *Tree) SplitVertically() {
 	tr.leaf = nil
 
 	ActiveTreeSet(tr.top)
+	tr.Resize(tr.Rect)
 }
 
 // Split Tree. Set new Active Tree to active.
@@ -221,6 +222,7 @@ func (tr *Tree) SplitHorizontally() {
 	tr.leaf = nil
 
 	ActiveTreeSet(tr.left)
+	tr.Resize(tr.Rect)
 }
 
 // This method recursively traverses the tree and applies a callback function cb to each node it visits.
