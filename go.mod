@@ -6,7 +6,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/ge-editor/theme v0.0.0-20241203095829-4aba4a283982
-	github.com/ge-editor/utils v0.0.0-20241203095458-38bf303eb68b
+	github.com/ge-editor/utils v0.0.0-20241212060824-c8d059a2de50
 )
 
 require golang.org/x/text v0.21.0 // indirect
