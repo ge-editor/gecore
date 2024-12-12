@@ -23,7 +23,7 @@ func NewOpMode() *OpMode {
 	}
 }
 
-const viewNames = `1234567890abcdefgijlmnpqstuwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`
+const viewNames = `1234567890acdefgijmnpquwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`
 
 func (v OpMode) Draw() {
 	// draw views names

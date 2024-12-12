@@ -199,7 +199,6 @@ func (tr *Tree) SplitVertically() {
 	tr.bottom = &Tree{
 		parent: tr,
 		leaf:   tr.newLeaf("bottom"),
-		// leaf:   (*Views.GetDefaultView()).NewLeaf(),
 	}
 	tr.split = 0.5
 	tr.leaf = nil
@@ -223,6 +222,114 @@ func (tr *Tree) SplitHorizontally() {
 
 	ActiveTreeSet(tr.left)
 	tr.Resize(tr.Rect)
+}
+
+func (tr *Tree) InsertTop() {
+	current := rootTree
+	rootTree = &Tree{}
+	rootTree.top = &Tree{
+		parent: rootTree,
+		leaf:   tr.newLeaf("top"),
+	}
+	if current.leaf == nil {
+		rootTree.bottom = current
+		current.parent = rootTree
+	} else {
+		rootTree.bottom = &Tree{
+			parent: rootTree,
+			leaf:   current.leaf,
+		}
+	}
+	rootTree.Rect = current.Rect
+	rootTree.split = 0.5
+
+	ActiveTreeSet(rootTree.top)
+	rootTree.Resize(rootTree.Rect)
+}
+
+func (tr *Tree) InsertRight() {
+	current := rootTree
+	rootTree = &Tree{}
+	rootTree.right = &Tree{
+		parent: rootTree,
+		leaf:   tr.newLeaf("right"),
+	}
+	if current.leaf == nil {
+		rootTree.left = current
+		current.parent = rootTree
+	} else {
+		rootTree.left = &Tree{
+			parent: rootTree,
+			leaf:   current.leaf,
+		}
+	}
+	rootTree.Rect = current.Rect
+	rootTree.split = 0.5
+
+	ActiveTreeSet(rootTree.right)
+	rootTree.Resize(rootTree.Rect)
+}
+
+func (tr *Tree) InsertBottom() {
+	current := rootTree
+	rootTree = &Tree{}
+	rootTree.bottom = &Tree{
+		parent: rootTree,
+		leaf:   tr.newLeaf("bottom"),
+	}
+	if current.leaf == nil {
+		rootTree.top = current
+		current.parent = rootTree
+	} else {
+		rootTree.top = &Tree{
+			parent: rootTree,
+			leaf:   current.leaf,
+		}
+	}
+	rootTree.Rect = current.Rect
+	rootTree.split = 0.5
+
+	ActiveTreeSet(rootTree.bottom)
+	rootTree.Resize(rootTree.Rect)
+}
+
+func (tr *Tree) InsertLeft() {
+	current := rootTree
+	rootTree = &Tree{}
+	rootTree.left = &Tree{
+		parent: rootTree,
+		leaf:   tr.newLeaf("left"),
+	}
+	if current.leaf == nil {
+		rootTree.right = current
+		current.parent = rootTree
+	} else {
+		rootTree.right = &Tree{
+			parent: rootTree,
+			leaf:   current.leaf,
+		}
+	}
+	rootTree.Rect = current.Rect
+	rootTree.split = 0.5
+
+	ActiveTreeSet(rootTree.left)
+	rootTree.Resize(rootTree.Rect)
+}
+
+func (tr *Tree) SwitchSplitDirection() {
+	if tr.parent.top != nil {
+		tr.parent.left = tr.parent.top
+		tr.parent.right = tr.parent.bottom
+		tr.parent.top = nil
+		tr.parent.bottom = nil
+	} else if tr.parent.left != nil {
+		tr.parent.top = tr.parent.left
+		tr.parent.bottom = tr.parent.right
+		tr.parent.left = nil
+		tr.parent.right = nil
+	}
+
+	tr.parent.Resize(tr.parent.Rect)
 }
 
 // This method recursively traverses the tree and applies a callback function cb to each node it visits.
