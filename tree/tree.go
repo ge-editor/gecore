@@ -178,8 +178,8 @@ func (tr *Tree) Resize(rect utils.Rect) {
 		tr.top.Resize(utils.Rect{X: rect.X, Y: rect.Y, Width: rect.Width, Height: th})
 		tr.bottom.Resize(utils.Rect{X: rect.X, Y: rect.Y + th, Width: rect.Width, Height: bh})
 	} else {
-		s := screen.Get()
-		(*tr.leaf).Resize(s.Width, s.Height, rect)
+		// s := screen.Get()
+		(*tr.leaf).Resize( /* s.Width, s.Height, */ rect)
 	}
 }
 
@@ -433,7 +433,9 @@ func (tr *Tree) firstLeafNode() *Tree {
 	panic("unreachable")
 }
 
-func (tr *Tree) Remove() {
+// delete-window
+// C-x 0
+func (tr *Tree) DeleteWindow() {
 	if ActiveTreeGet().parent == nil { // Root Tree
 		return
 	}
@@ -461,6 +463,8 @@ func (tr *Tree) Remove() {
 	}
 
 	ActiveTreeSet(sib.parent.firstLeafNode())
+
+	GetRootTree().Resize(screen.Get().RootRect())
 }
 
 func (tr *Tree) NextInCycle() {

@@ -2,6 +2,7 @@ package tree
 
 import (
 	"github.com/gdamore/tcell/v2"
+
 	"github.com/ge-editor/utils"
 )
 
@@ -11,7 +12,7 @@ type Leaf interface {
 	// Tree() *Tree
 	// SetParentTree(*Tree)
 
-	Resize(int, int, utils.Rect)
+	Resize(viewArea utils.Rect)
 	Draw()
 	Redraw()
 	Kill(*Leaf, bool) *Leaf
@@ -27,4 +28,6 @@ type Leaf interface {
 	Resume()
 	Init()
 	WillClose() //
+
+	MiniBufferMode(int)
 }

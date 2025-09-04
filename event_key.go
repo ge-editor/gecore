@@ -71,6 +71,14 @@ func (kp *KeyPointer) Bind(keys []string, fn any) {
 	for i := 0; i < len(keys); i++ {
 		s := keys[i]
 		md, ky, ch, err := Decode(s)
+		/*
+			// if s == "Ctrl+J" {
+			if s == "Ctrl+Space" {
+				// Ctrl+J, mod 2, key 10, ch, 74, err <nil> // 74 'J'
+				//         mod 2, key 10, ch, 10 // 10	0x0a	LF（改行）
+				fmt.Printf("Bind %s, mod %v, key %v, ch, %v, err %v\n", s, md, ky, ch, err)
+			}
+		*/
 		if err != nil {
 			// verb.PP("%#v", err)
 			continue

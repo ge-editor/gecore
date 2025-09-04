@@ -148,9 +148,7 @@ DECODEPIECE:
 		k, ok := ctrlKeys[unicode.ToLower(ch)]
 		if ok {
 			key = k
-			if UnifyEnterKeys && key == ctrlKeys['j'] {
-				// key = tcell.KeyEnter
-				// verb.PP("ctrl j 1")
+			if UnifyEnterKeys && key == ctrlKeys['J'] {
 				key = tcell.KeyCtrlJ
 			} else if key < 0x80 {
 				ch = rune(key)
@@ -158,17 +156,20 @@ DECODEPIECE:
 		}
 	}
 
+	// fmt.Printf("Decode1 %s, mod %v, key %v, ch, %v, err %v\n", s, mod, key, ch, err)
 	switch key {
 	case tcell.KeyEsc:
 		ch = 0
 	case tcell.KeyBS:
 		// Enable Ctrl+H
 		mod = 0
-	case tcell.KeyCtrlJ:
-		// Enable Ctrl+J
-		mod = tcell.ModCtrl
-		//ch = 'j'
-		// ch = 0
+	default:
+		// tcell.KeyCtrlSpace:
+		if mod&tcell.ModCtrl > 0 && key == 10 && ch == 32 {
+			mod = 2
+			key = 0
+			ch = 0
+		}
 	}
 	return mod, key, ch, nil
 }

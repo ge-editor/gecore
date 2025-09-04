@@ -18,6 +18,7 @@ func NewMiniBufferPopupmenu(message string, prefix string, echo bool) *MiniBuffe
 
 	mb := &MiniBufferPopupmenu{
 		MiniBuffer: NewMiniBuffer(message, prefix, echo),
+		Popupmenu:  NewPopupmenu(utils.Rect{0, 0, 10, 10}, []string{}, 0),
 		Screen:     screen.Get(),
 		histories:  []string{},
 		// KeyPointer: KeyMapper(),

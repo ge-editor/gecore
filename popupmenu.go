@@ -38,7 +38,7 @@ type Popupmenu struct {
 
 func (pm *Popupmenu) Item() (int, string) {
 	// verb.PP("items %d, %d, %v", pm.itemIndex, len(pm.items), pm.items)
-	if len(pm.items) == 0 {
+	if pm == nil || len(pm.items) == 0 || pm.itemIndex < 0 || pm.itemIndex >= len(pm.items) {
 		return -1, ""
 	}
 	return pm.itemIndex, pm.items[pm.itemIndex]

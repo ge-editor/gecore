@@ -28,14 +28,16 @@ type Mode interface {
 	// The cursor position based on byte indices
 	// Format(source [][]byte, cursorRow, cursorCol int) ([][]byte, int, int, error)
 
-	// FormatBeforeSave(source [][]byte, cursorRow, cursorCol int) ([][]byte, int, int, error)
+	IsFormattingBeforeSave() bool
+	Formatting(source []byte) ([]byte, error)
 
-	Format(source [][]byte) ([][]byte, error)
+	GetDefaultTabWidth() int
+	GetTabWidth() int
+	SetTabWidth(int)
 
-	FormatBeforeSave(source [][]byte) ([][]byte, error)
-
-	IndentWidth() int
-	IsSoftTAB() bool
+	GetDefaultSoftTab() bool
+	GetSoftTab() bool
+	SetSoftTab(bool)
 
 	// Tree-sitter
 	ColorizeEvents(ctx context.Context, oldTree *sitter.Tree, sourceCode []byte) ([]Event, *sitter.Tree, error)
