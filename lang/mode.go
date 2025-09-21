@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/gdamore/tcell/v2"
-
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
