@@ -2,7 +2,9 @@ package killbuffer
 
 import (
 	"github.com/atotto/clipboard"
+
 	"github.com/ge-editor/gelog"
+	"github.com/ge-editor/utils"
 )
 
 /*
@@ -21,22 +23,41 @@ Platforms:
     Linux, Unix (requires 'xclip' or 'xsel' command to be installed)
 */
 
-// ViewLeaf common kill buffer
+// killBuffer stores killed text as a collection of rows.
+// Rows do not contain newline characters.
 var KillBuffer = &killBuffer{}
 
-type killBuffer [][]byte
+type killBuffer [][][]byte
 
-func (kb *killBuffer) PushKillBuffer(buff []byte) error {
+/* func (kb *killBuffer) PushKillBuffer(buff [][]byte, newline []byte) error {
 	*kb = append(*kb, buff)
 
-	err := clipboard.WriteAll(string(buff))
+	joined, _, _ := utils.JoinRows(buff, newline, true)
+	err := clipboard.WriteAll(string(joined))
+	if err != nil {
+		gelog.Error(err.Error())
+	}
+	return err
+} */
+
+func (kb *killBuffer) PushKillBuffer(buff [][]byte, newline []byte) error {
+	// Keep an independent copy in the kill buffer.
+	saved := make([][]byte, len(buff))
+	for i, row := range buff {
+		saved[i] = append([]byte(nil), row...)
+	}
+
+	*kb = append(*kb, saved)
+
+	joined, _, _ := utils.JoinRows(saved, newline, true)
+	err := clipboard.WriteAll(string(joined))
 	if err != nil {
 		gelog.Error(err.Error())
 	}
 	return err
 }
 
-func (kb *killBuffer) PopKillBuffer() []byte {
+func (kb *killBuffer) PopKillBuffer() [][]byte {
 	l := len(*kb)
 	if l == 0 {
 		return nil
@@ -46,13 +67,13 @@ func (kb *killBuffer) PopKillBuffer() []byte {
 	return buff
 }
 
-func (kb *killBuffer) GetLast() []byte {
+func (kb *killBuffer) GetLast() [][]byte {
 	return kb.Get(len(*kb) - 1)
 }
 
 // Get retrieves the element at the specified index in the buffer,
 // and then moves that element to the end of the buffer.
-func (kb *killBuffer) Get(index int) []byte {
+func (kb *killBuffer) Get(index int) [][]byte {
 	l := len(*kb)
 	if index < 0 || index >= l {
 		return nil

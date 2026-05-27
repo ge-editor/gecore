@@ -10,7 +10,6 @@ import (
 	"github.com/ge-editor/gecore/popupmenu"
 	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/keychord"
-	"github.com/ge-editor/utils"
 )
 
 // var popupmenuManager = &PopupmenuManagerStruct{}
@@ -29,7 +28,7 @@ type PopupmenuManagerStruct struct {
 	active bool
 	// dispatchActive bool
 	session     *popupmenu.Session
-	overlayRect utils.Rect
+	overlayRect screen.Rect
 }
 
 func (pm *PopupmenuManagerStruct) Popupmenu() *popupmenu.PopupmenuStruct {
@@ -104,7 +103,7 @@ func (pm *PopupmenuManagerStruct) RequiredHeight() int {
 	return pm.session.Popupmenu.RequiredHeight()
 }
 
-func (pm *PopupmenuManagerStruct) Resize(overallRect utils.Rect) {
+func (pm *PopupmenuManagerStruct) Resize(overallRect screen.Rect) {
 	// gelog.Info("PopupmenuManager", "Resize", "rect", rect)
 	pm.overlayRect = overallRect
 
@@ -116,12 +115,12 @@ func (pm *PopupmenuManagerStruct) Resize(overallRect utils.Rect) {
 	// overlay.OverlayManager().Layout(screen.Get().Rect) ///////////////no!
 }
 
-func (pm *PopupmenuManagerStruct) Draw(s tcell.Screen) {
+func (pm *PopupmenuManagerStruct) Draw() bool {
 	if !pm.active || pm.session == nil {
-		return
+		return false
 	}
-	// pm.session.Popupmenu.Resize(pm.overlayRect) ///////////
-	pm.session.Popupmenu.Draw(s)
+	pm.session.Popupmenu.Draw()
+	return false
 }
 
 func (pm *PopupmenuManagerStruct) UniversalCancel() {

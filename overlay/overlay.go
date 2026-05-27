@@ -6,13 +6,12 @@ import (
 	"github.com/gdamore/tcell/v3"
 
 	"github.com/ge-editor/gecore/screen"
-	"github.com/ge-editor/utils"
 )
 
 type Overlay interface {
 	RequiredHeight() int
-	Resize(overlayRect utils.Rect)
-	Draw(screen tcell.Screen)
+	Resize(overlayRect screen.Rect)
+	Draw() bool
 	IsActive() bool
 }
 
@@ -36,15 +35,7 @@ func (m *overlayManagerStruct) Add(o Overlay) {
 		return
 	}
 
-	/* 	switch o.Type() {
-	   	case OverlayFlow:
-	   		m.flowOverlays = append(m.flowOverlays, o)
-	   	case OverlayFree:
-	*/
 	m.freeOverlays = append(m.freeOverlays, o)
-	//}
-	// m.Resize(screen.Get().Rect)
-	// m.Layout(screen.Get().Rect)
 }
 
 // Remove unregisters an overlay.
@@ -87,22 +78,18 @@ func (m *overlayManagerStruct) SetEcho(o Overlay) {
 // Layout calculates overlay rectangles from the bottom of screenRect upward,
 // calls Resize on each overlay, and returns the remaining rect for tree.
 // stack from bottom (last overlay is bottom-most)
-func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
+func (m *overlayManagerStruct) Layout(screenRect screen.Rect) screen.Rect {
 	rect := screenRect
 	act := m.Minibuffer.IsActive()
 
 	// Echo
 	if m.Echo != nil {
-		// overlay.Height() が 0 の場合でも o.Resize() を呼び出す必要がある
-		// Echo は通常 inactive で minibuffer と排他表示, active な場合は強制表示
+		// o.Resize() must be called even when overlay.Height() is 0.
+
+		// Echo is normally inactive and displayed exclusively with the minibuffer.
+		// The minibuffer and echo line are mutually exclusive and are never displayed simultaneously.
+		// When Echo is active, it is displayed unconditionally.
 		h := 0
-		/*
-			if !m.Echo.IsActive() && act {
-				h = 0
-			} else {
-				h = m.Echo.RequiredHeight()
-			}
-		*/
 		if m.Echo.IsActive() || !act {
 			h = m.Echo.RequiredHeight()
 		}
@@ -113,7 +100,7 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 
 		y := rect.Y + rect.Height - h
 
-		overlayRect := utils.Rect{
+		overlayRect := screen.Rect{
 			X:      rect.X,
 			Y:      y,
 			Width:  rect.Width,
@@ -147,7 +134,7 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 			// Minibuffer の高さの最大値は画面全体の高さから割合で算出している
 		}
 
-		overlayRect := utils.Rect{
+		overlayRect := screen.Rect{
 			X:      rect.X,
 			Y:      y,
 			Width:  rect.Width,
@@ -176,7 +163,7 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 		// 残り全ての高さを使用
 		h := rect.Height
 
-		overlayRect := utils.Rect{
+		overlayRect := screen.Rect{
 			X:      rect.X,
 			Y:      0,
 			Width:  rect.Width,
@@ -196,20 +183,25 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 }
 
 // Draw draws all overlays in registration order.
-func (m *overlayManagerStruct) Draw(screen tcell.Screen) {
+func (m *overlayManagerStruct) Draw() bool {
 	flowOverlays := []Overlay{m.Tree, m.Minibuffer, m.Echo}
 	for _, o := range flowOverlays {
 		if o == nil {
 			continue
 		}
-		o.Draw(screen)
+		if o.Draw() {
+			return true
+		}
 	}
 	for _, o := range m.freeOverlays {
 		if o == nil {
 			continue
 		}
-		o.Draw(screen)
+		if o.Draw() {
+			return true
+		}
 	}
+	return false
 }
 
 func (m *overlayManagerStruct) Resize(ev tcell.EventResize) {
@@ -218,7 +210,7 @@ func (m *overlayManagerStruct) Resize(ev tcell.EventResize) {
 		return
 	}
 
-	screenRect := utils.Rect{
+	screenRect := screen.Rect{
 		X:      0,
 		Y:      0,
 		Width:  w,

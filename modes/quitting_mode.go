@@ -73,7 +73,8 @@ func (qm *QuittingMode) WillExit() {
 }
 
 func (qm *QuittingMode) Draw() {
-	qm.QuitGuardResolver.Draw()
+	// 呼び出し不要
+	// qm.QuitGuardResolver.Draw()
 }
 
 // return Mode interface

@@ -1,6 +1,12 @@
 package tree
 
+import "github.com/ge-editor/gecore"
+
 var ActiveLeaf Leaf
+
+type LeafContext struct {
+	CancelManager *gecore.EventCancelManager
+}
 
 // Leaf を生成・複製するための Factory + Policy の集合
 type LeafType interface {
@@ -15,6 +21,10 @@ type LeafType interface {
 	// direction: "right", "bottom" are not referenced
 	NewSiblingLeaf(direction string, leaf Leaf) Leaf
 
-	Name() string // this view name
-	// WillClose() // Should I move it here?
+	RealName() string         // Immutable canonical name (e.g. "github.com/ge-editor/editorleaf")
+	Name() string             // Mutable registered name (e.g. "editorleaf")
+	SetRegisteredName(string) // Overrides Name()
+
+	SetCtx(*LeafContext)
+	CancelManager() *gecore.EventCancelManager
 }

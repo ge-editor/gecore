@@ -42,7 +42,7 @@ type QuitGuardResolver interface {
 
 	WillEnter()
 	WillExit()
-	Draw()
+	Draw() bool
 }
 
 type QuitGuardManagerStruct struct {
