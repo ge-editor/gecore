@@ -29,6 +29,10 @@ import (
 
 // If the file has already been read, use that buffer
 func (e *Editorleaf) OpenFile(path string) (editbuffer.Result, error) {
+	// Save current Editorleaf Meta data before switching editing content.
+	e.GetBuffers().BufferSet(e.editBuffer).PushMeta(e.meta)
+
+	// Open new editing content in the editor buffer
 	ff, meta, result, err := BufferSets.GetFileAndMeta(path)
 	e.editBuffer = ff
 	e.meta = meta
