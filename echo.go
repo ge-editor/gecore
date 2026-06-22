@@ -70,7 +70,7 @@ func (e *EchoStruct) Resize(overlayRect utils.Rect) {
 	e.overlayRect = overlayRect
 }
 
-func (e *EchoStruct) Draw(screen tcell.Screen) {
+func (e *EchoStruct) Draw(screen tcell.Screen) bool {
 	for x := 0; x < e.overlayRect.Width; x++ {
 		screen.SetContent(x, e.overlayRect.Y, ' ', nil, e.style)
 	}
@@ -92,6 +92,8 @@ func (e *EchoStruct) Draw(screen tcell.Screen) {
 	// Clear text
 	e.textArray = e.textArray[:0]
 	e.chain.justNowActive = EchoNormal
+
+	return false
 }
 
 func (e *EchoStruct) Clear() {

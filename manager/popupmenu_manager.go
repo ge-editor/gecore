@@ -116,12 +116,12 @@ func (pm *PopupmenuManagerStruct) Resize(overallRect utils.Rect) {
 	// overlay.OverlayManager().Layout(screen.Get().Rect) ///////////////no!
 }
 
-func (pm *PopupmenuManagerStruct) Draw(s tcell.Screen) {
+func (pm *PopupmenuManagerStruct) Draw(s tcell.Screen) bool {
 	if !pm.active || pm.session == nil {
-		return
+		return false
 	}
-	// pm.session.Popupmenu.Resize(pm.overlayRect) ///////////
 	pm.session.Popupmenu.Draw(s)
+	return false
 }
 
 func (pm *PopupmenuManagerStruct) UniversalCancel() {

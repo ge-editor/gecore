@@ -83,15 +83,19 @@ func (tr *Tree) GetLeaf() Leaf {
 	}
 */
 
-func (tr *Tree) Draw(screen tcell.Screen) {
+func (tr *Tree) Draw(screen tcell.Screen) bool {
 	if tr.left != nil {
-		tr.left.Draw(screen)
-		tr.right.Draw(screen)
+		if tr.left.Draw(screen) {
+			return true
+		}
+		return tr.right.Draw(screen)
 	} else if tr.top != nil {
-		tr.top.Draw(screen)
-		tr.bottom.Draw(screen)
+		if tr.top.Draw(screen) {
+			return true
+		}
+		return tr.bottom.Draw(screen)
 	} else {
-		tr.leaf.Draw()
+		return tr.leaf.Draw()
 	}
 }
 
@@ -183,6 +187,7 @@ func (tr *Tree) newLeaf(direction string) Leaf {
 	if !ok {
 
 	}
+	// gelog.Debug("tr", tr, "tr.GetLeaf()", tr.GetLeaf())
 	return v.NewSiblingLeaf(direction, tr.GetLeaf()) // New Leaf
 }
 

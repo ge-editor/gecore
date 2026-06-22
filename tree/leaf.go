@@ -11,7 +11,7 @@ type Leaf interface {
 	LeafType() LeafType
 
 	Resize(utils.Rect)
-	Draw()
+	Draw() bool
 	Kill(Leaf, bool) Leaf
 	Active(bool)
 

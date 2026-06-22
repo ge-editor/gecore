@@ -12,7 +12,7 @@ import (
 type Overlay interface {
 	RequiredHeight() int
 	Resize(overlayRect utils.Rect)
-	Draw(screen tcell.Screen)
+	Draw(screen tcell.Screen) bool
 	IsActive() bool
 }
 
@@ -36,15 +36,7 @@ func (m *overlayManagerStruct) Add(o Overlay) {
 		return
 	}
 
-	/* 	switch o.Type() {
-	   	case OverlayFlow:
-	   		m.flowOverlays = append(m.flowOverlays, o)
-	   	case OverlayFree:
-	*/
 	m.freeOverlays = append(m.freeOverlays, o)
-	//}
-	// m.Resize(screen.Get().Rect)
-	// m.Layout(screen.Get().Rect)
 }
 
 // Remove unregisters an overlay.
@@ -196,20 +188,25 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 }
 
 // Draw draws all overlays in registration order.
-func (m *overlayManagerStruct) Draw(screen tcell.Screen) {
+func (m *overlayManagerStruct) Draw(screen tcell.Screen) bool {
 	flowOverlays := []Overlay{m.Tree, m.Minibuffer, m.Echo}
 	for _, o := range flowOverlays {
 		if o == nil {
 			continue
 		}
-		o.Draw(screen)
+		if o.Draw(screen) {
+			return true
+		}
 	}
 	for _, o := range m.freeOverlays {
 		if o == nil {
 			continue
 		}
-		o.Draw(screen)
+		if o.Draw(screen) {
+			return true
+		}
 	}
+	return false
 }
 
 func (m *overlayManagerStruct) Resize(ev tcell.EventResize) {
