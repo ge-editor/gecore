@@ -17,6 +17,8 @@ type Leaf interface {
 
 	DispatchKey(ev tcell.EventKey) (string, keychord.KeyDispatchTransition)
 
+	DispatchMouse(ev tcell.EventMouse) // (string, keychord.KeyDispatchTransition)
+
 	Resume()
 	Init()
 	WillClose()

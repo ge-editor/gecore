@@ -27,7 +27,7 @@ func (r *SpecialCharResolver) Resolve(
 	case ch == '\t':
 		return theme.ColorTab, Changed
 
-	case ch == define.LF:
+	case ch == '\n':
 		return theme.ColorMarkNewline, Changed
 
 	case locale.Is(ctx.Cell, locale.CONTROLCODE):

@@ -21,6 +21,7 @@ func init() {
 	if err != nil {
 		fmt.Println(err)
 	}
+	screen.EnableMouse()
 }
 
 type Alignment int
