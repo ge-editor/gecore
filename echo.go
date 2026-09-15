@@ -6,6 +6,7 @@ import (
 
 	"github.com/gdamore/tcell/v3"
 
+	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/theme"
 	"github.com/ge-editor/utils"
 )
@@ -62,7 +63,11 @@ func (e *EchoStruct) RequiredHeight() int {
 
 // Overlay interface
 func (e *EchoStruct) IsActive() bool {
-	return e.chain.justNowActive != EchoNormal
+	// The minibuffer and echo line are mutually exclusive and are never displayed simultaneously.
+	// return e.chain.justNowActive != EchoNormal
+
+	// Always displayed
+	return true
 }
 
 func (e *EchoStruct) Resize(overlayRect utils.Rect) {
@@ -70,18 +75,15 @@ func (e *EchoStruct) Resize(overlayRect utils.Rect) {
 	e.overlayRect = overlayRect
 }
 
-func (e *EchoStruct) Draw(screen tcell.Screen) bool {
+func (e *EchoStruct) Draw(ts tcell.Screen) bool {
+	screen := screen.Get()
+
 	for x := 0; x < e.overlayRect.Width; x++ {
 		screen.SetContent(x, e.overlayRect.Y, ' ', nil, e.style)
 	}
 
 	s := strings.Join(e.textArray, ", ")
-	for i, r := range s {
-		if i >= e.overlayRect.Width {
-			break
-		}
-		screen.SetContent(i, e.overlayRect.Y, r, nil, e.style)
-	}
+	screen.DrawString(0, e.overlayRect.Y, e.overlayRect.Width, s, e.style)
 
 	if e.chain.isShowCursor {
 		w := utils.WidthOnScreen([]byte(s))

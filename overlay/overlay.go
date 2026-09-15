@@ -85,16 +85,12 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 
 	// Echo
 	if m.Echo != nil {
-		// overlay.Height() が 0 の場合でも o.Resize() を呼び出す必要がある
-		// Echo は通常 inactive で minibuffer と排他表示, active な場合は強制表示
+		// o.Resize() must be called even when overlay.Height() is 0.
+
+		// Echo is normally inactive and displayed exclusively with the minibuffer.
+		// The minibuffer and echo line are mutually exclusive and are never displayed simultaneously.
+		// When Echo is active, it is displayed unconditionally.
 		h := 0
-		/*
-			if !m.Echo.IsActive() && act {
-				h = 0
-			} else {
-				h = m.Echo.RequiredHeight()
-			}
-		*/
 		if m.Echo.IsActive() || !act {
 			h = m.Echo.RequiredHeight()
 		}
