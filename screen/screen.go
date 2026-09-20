@@ -34,7 +34,7 @@ const (
 
 type Screen struct {
 	tcell.Screen
-	utils.Rect
+	Rect
 	CX, CY int // cursor position
 	echo   []string
 }
@@ -54,14 +54,14 @@ func newScreen() (*Screen, error) {
 
 	screen = &Screen{
 		Screen: tcellScreen,
-		Rect:   utils.Rect{X: 0, Y: 0, Width: w, Height: h},
+		Rect:   Rect{X: 0, Y: 0, Width: w, Height: h},
 	}
 	return screen, nil
 }
 
 // Return Screen Rect without Minibuffer
-func (s *Screen) RootRect() utils.Rect {
-	return utils.Rect{X: 0, Y: 0, Width: s.Width, Height: s.Height - 1}
+func (s *Screen) RootRect() Rect {
+	return Rect{X: 0, Y: 0, Width: s.Width, Height: s.Height - 1}
 }
 
 // ShowCursor sets the cursor position to (x, y).
@@ -75,46 +75,7 @@ func (s *Screen) HideCursor() {
 	s.Screen.ShowCursor(-1, -1)
 }
 
-// Fills an area which is an intersection between buffer and 'dest' with 'proto'.
-/*
-func (s *Screen) Fill(dest utils.Rect, proto Cell) {
-	// m.unsafe_fill(m.Rect.Intersection(dst), proto)
-	// Unsafe part of the fill operation, doesn't check for bounds.
-	// func (m *Screen) unsafe_fill(dest utils.Rect, proto Cell) {
-	dest = s.Rect.Intersection(dest)
-	// gelog.Info("unsafe fill proto='%#v', dest='%#v'", proto, dest)
-	runeWidth := utils.RuneWidth(proto.Ch)
-	// stride := m.Width
-	// off := m.Width*dest.Y + dest.X
-	// 1個前の cell の文字幅が 2なら cell を空ににする
-	for y := 0; y < dest.Height; y++ {
-		for x := 0; x < dest.Width; x++ {
-			if x == 0 {
-				// 1個前の cell の文字幅が 2なら cell を空ににする
-				// if _, _, _, w := s.Screen.GetContent(dest.X-1, dest.Y); w == 2 { // tcell/v2
-				if _, _, w := s.Screen.Get(dest.X-1, dest.Y); w == 2 { // tcell/v3
-					s.Screen.SetContent(dest.X-1, dest.Y, 0, nil, theme.ColorDefault)
-				}
-			}
-			if runeWidth == 2 {
-				if dest.X+x+runeWidth <= dest.Width {
-					s.Screen.SetContent(dest.X+x, dest.Y+y, proto.Ch, nil, proto.Style)
-					x++
-					s.Screen.SetContent(dest.X+x, dest.Y+y, 0, nil, proto.Style)
-				} else {
-					s.Screen.SetContent(dest.X+x, dest.Y+y, 0, nil, proto.Style)
-				}
-			} else {
-				s.Screen.SetContent(dest.X+x, dest.Y+y, proto.Ch, nil, proto.Style)
-			}
-		}
-		// off += stride
-	}
-	// }
-}
-*/
-
-func (s *Screen) FillRect(dest utils.Rect, r rune, style tcell.Style) {
+func (s *Screen) FillRect(dest Rect, r rune, style tcell.Style) {
 	dest = s.Rect.Intersection(dest)
 	if dest.Width <= 0 || dest.Height <= 0 {
 		return
@@ -160,34 +121,6 @@ func (s *Screen) FillRect(dest utils.Rect, r rune, style tcell.Style) {
 	}
 }
 
-// Sets a cell at specified position
-/*
-func (m *Screen) Set(x, y int, proto Cell) {
-	runewidth := utils.RuneWidth(proto.Ch)
-
-	//pp("top of Set(x=%v, y=%v). this='%#v'", x, y, this)
-	// if x < 0 || x >= m.Width {
-	if x < 0 || x+runewidth > m.Width {
-		return
-	}
-	if y < 0 || y >= m.Height {
-		return
-	}
-	// off := m.Width*y + x
-	// m.Cells[off] = proto
-
-	if x > 0 {
-		if _, _, _, w := m.Screen.GetContent(x-1, y); w == 2 {
-			m.Screen.SetContent(x-1, y, 0, nil, proto.Style)
-		}
-	}
-	m.Screen.SetContent(x, y, proto.Ch, nil, proto.Style)
-	if runewidth == 2 {
-		m.Screen.SetContent(x+1, y, 0, nil, proto.Style)
-	}
-}
-*/
-
 // Resizes the Buffer, buffer contents are invalid after the resize.
 func (s *Screen) Resize(w, h int) {
 	s.Width = w
@@ -202,7 +135,7 @@ type LabelParams struct {
 }
 
 // func (m *Screen) DrawLabel(dest utils.Rect, params *LabelParams, text []byte) {
-func (s *Screen) DrawLabel(dest utils.Rect, params *LabelParams, text string) {
+func (s *Screen) DrawLabel(dest Rect, params *LabelParams, text string) {
 	// gelog.Info("DrawLabel, text = '%s', param='%#v'. dest='%#v'", string(text), params, dest)
 
 	/*

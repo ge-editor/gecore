@@ -3,14 +3,14 @@ package tree
 import (
 	"github.com/gdamore/tcell/v3"
 
+	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/keychord"
-	"github.com/ge-editor/utils"
 )
 
 type Leaf interface {
 	LeafType() LeafType
 
-	Resize(utils.Rect)
+	Resize(screen.Rect)
 	Draw() bool
 	Kill(Leaf, bool) Leaf
 	Active(bool)

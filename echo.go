@@ -26,7 +26,7 @@ const (
 // Required implement Overlay interface
 type EchoStruct struct {
 	textArray   []string
-	overlayRect utils.Rect
+	overlayRect screen.Rect
 	style       tcell.Style
 	height      int
 	chain       *chainStruct
@@ -70,12 +70,12 @@ func (e *EchoStruct) IsActive() bool {
 	return true
 }
 
-func (e *EchoStruct) Resize(overlayRect utils.Rect) {
+func (e *EchoStruct) Resize(overlayRect screen.Rect) {
 	// 計算は overlay.Layout が行う
 	e.overlayRect = overlayRect
 }
 
-func (e *EchoStruct) Draw(ts tcell.Screen) bool {
+func (e *EchoStruct) Draw() bool {
 	screen := screen.Get()
 
 	for x := 0; x < e.overlayRect.Width; x++ {

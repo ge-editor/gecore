@@ -1,10 +1,7 @@
 package tree
 
 import (
-	"github.com/gdamore/tcell/v3"
-
 	"github.com/ge-editor/gecore/screen"
-	"github.com/ge-editor/utils"
 )
 
 // Context Root に名を変更 2026-01-24 Sat
@@ -61,7 +58,7 @@ type Tree struct {
 
 	split float32
 
-	utils.Rect
+	screen.Rect
 
 	leaf Leaf
 }
@@ -83,17 +80,17 @@ func (tr *Tree) GetLeaf() Leaf {
 	}
 */
 
-func (tr *Tree) Draw(screen tcell.Screen) bool {
+func (tr *Tree) Draw() bool {
 	if tr.left != nil {
-		if tr.left.Draw(screen) {
+		if tr.left.Draw() {
 			return true
 		}
-		return tr.right.Draw(screen)
+		return tr.right.Draw()
 	} else if tr.top != nil {
-		if tr.top.Draw(screen) {
+		if tr.top.Draw() {
 			return true
 		}
-		return tr.bottom.Draw(screen)
+		return tr.bottom.Draw()
 	} else {
 		return tr.leaf.Draw()
 	}
@@ -148,7 +145,7 @@ func (tr *Tree) RequiredHeight() int {
 }
 
 // or error
-func (tr *Tree) Resize(rect utils.Rect) {
+func (tr *Tree) Resize(rect screen.Rect) {
 	tr.Rect = rect
 
 	if tr.left != nil {
@@ -163,8 +160,8 @@ func (tr *Tree) Resize(rect utils.Rect) {
 		lw := int(float32(w) * tr.split)
 		rw := w - lw
 		// gelog.Info("v.Rect, rect %v %v, lw,rw %d,%d", tr.Rect, rect, lw, rw)
-		tr.left.Resize(utils.Rect{X: rect.X, Y: rect.Y, Width: lw, Height: rect.Height})
-		tr.right.Resize(utils.Rect{X: rect.X + lw /* + 1 */, Y: rect.Y, Width: rw, Height: rect.Height})
+		tr.left.Resize(screen.Rect{X: rect.X, Y: rect.Y, Width: lw, Height: rect.Height})
+		tr.right.Resize(screen.Rect{X: rect.X + lw /* + 1 */, Y: rect.Y, Width: rw, Height: rect.Height})
 	} else if tr.top != nil {
 		// vertical split, use 'h', no need to reserve one line for
 		// splitter, because splitters are part of the buffer's output
@@ -172,8 +169,8 @@ func (tr *Tree) Resize(rect utils.Rect) {
 		h := rect.Height
 		th := int(float32(h) * tr.split)
 		bh := h - th
-		tr.top.Resize(utils.Rect{X: rect.X, Y: rect.Y, Width: rect.Width, Height: th})
-		tr.bottom.Resize(utils.Rect{X: rect.X, Y: rect.Y + th, Width: rect.Width, Height: bh})
+		tr.top.Resize(screen.Rect{X: rect.X, Y: rect.Y, Width: rect.Width, Height: th})
+		tr.bottom.Resize(screen.Rect{X: rect.X, Y: rect.Y + th, Width: rect.Width, Height: bh})
 	} else {
 		// s := screen.Get()
 		tr.leaf.Resize( /* s.Width, s.Height, */ rect)

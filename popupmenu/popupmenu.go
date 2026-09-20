@@ -46,8 +46,8 @@ type PopupmenuStruct struct {
 	itemIndex int
 	active    bool
 
-	overlayRect utils.Rect // popupmenu を配置する領域
-	popupRect   utils.Rect // popupmenu の位置とサイズ
+	overlayRect screen.Rect // popupmenu を配置する領域
+	popupRect   screen.Rect // popupmenu の位置とサイズ
 
 	startIndex int
 
@@ -58,7 +58,7 @@ func NewPopupmenu() *PopupmenuStruct {
 	return &PopupmenuStruct{
 		items:     []string{},
 		itemIndex: 0,
-		popupRect: utils.Rect{
+		popupRect: screen.Rect{
 			X:      8,
 			Y:      10,
 			Width:  40,
@@ -84,7 +84,7 @@ func (p *PopupmenuStruct) RequiredHeight() int {
 	return p.popupRect.Height
 }
 
-func (p *PopupmenuStruct) Resize(rect utils.Rect) {
+func (p *PopupmenuStruct) Resize(rect screen.Rect) {
 	p.overlayRect = rect
 	// p.overlayRect.Height -= 2 // top space + mode line
 	p.overlayRect.Height -= 1 // top space
@@ -95,7 +95,7 @@ func (p *PopupmenuStruct) Resize(rect utils.Rect) {
 }
 
 /*
-	 func (p *PopupmenuStruct) SetPopupRect(rect utils.Rect) {
+	 func (p *PopupmenuStruct) SetPopupRect(rect screen.Rect) {
 		p.popupRect = rect
 	}
 */
@@ -105,12 +105,10 @@ func (p *PopupmenuStruct) SetPopupPos(x, y int) {
 	p.popupRect.Y = y
 }
 
-func (p *PopupmenuStruct) Draw(s tcell.Screen) {
+func (p *PopupmenuStruct) Draw() {
 	if !p.active || len(p.items) == 0 {
 		return
 	}
-
-	// _, screenHeight := s.Size()
 
 	// clamp index
 	if p.itemIndex < 0 {
@@ -136,7 +134,7 @@ func (p *PopupmenuStruct) Draw(s tcell.Screen) {
 		}
 
 		screen.Get().DrawLabel(
-			utils.Rect{
+			screen.Rect{
 				X:      p.popupRect.X,
 				Y:      p.popupRect.Y + row,
 				Width:  p.popupRect.Width - 1,
@@ -154,7 +152,7 @@ func (p *PopupmenuStruct) Draw(s tcell.Screen) {
 		if row == progress {
 			r = ch
 		}
-		s.SetContent(p.popupRect.X+p.popupRect.Width-1, p.popupRect.Y+row, r, nil, theme.ColorPopupmenuForeground)
+		screen.Get().SetContent(p.popupRect.X+p.popupRect.Width-1, p.popupRect.Y+row, r, nil, theme.ColorPopupmenuForeground)
 	}
 }
 

@@ -6,13 +6,12 @@ import (
 	"github.com/gdamore/tcell/v3"
 
 	"github.com/ge-editor/gecore/screen"
-	"github.com/ge-editor/utils"
 )
 
 type Overlay interface {
 	RequiredHeight() int
-	Resize(overlayRect utils.Rect)
-	Draw(screen tcell.Screen) bool
+	Resize(overlayRect screen.Rect)
+	Draw() bool
 	IsActive() bool
 }
 
@@ -79,7 +78,7 @@ func (m *overlayManagerStruct) SetEcho(o Overlay) {
 // Layout calculates overlay rectangles from the bottom of screenRect upward,
 // calls Resize on each overlay, and returns the remaining rect for tree.
 // stack from bottom (last overlay is bottom-most)
-func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
+func (m *overlayManagerStruct) Layout(screenRect screen.Rect) screen.Rect {
 	rect := screenRect
 	act := m.Minibuffer.IsActive()
 
@@ -101,7 +100,7 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 
 		y := rect.Y + rect.Height - h
 
-		overlayRect := utils.Rect{
+		overlayRect := screen.Rect{
 			X:      rect.X,
 			Y:      y,
 			Width:  rect.Width,
@@ -135,7 +134,7 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 			// Minibuffer の高さの最大値は画面全体の高さから割合で算出している
 		}
 
-		overlayRect := utils.Rect{
+		overlayRect := screen.Rect{
 			X:      rect.X,
 			Y:      y,
 			Width:  rect.Width,
@@ -164,7 +163,7 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 		// 残り全ての高さを使用
 		h := rect.Height
 
-		overlayRect := utils.Rect{
+		overlayRect := screen.Rect{
 			X:      rect.X,
 			Y:      0,
 			Width:  rect.Width,
@@ -184,13 +183,13 @@ func (m *overlayManagerStruct) Layout(screenRect utils.Rect) utils.Rect {
 }
 
 // Draw draws all overlays in registration order.
-func (m *overlayManagerStruct) Draw(screen tcell.Screen) bool {
+func (m *overlayManagerStruct) Draw() bool {
 	flowOverlays := []Overlay{m.Tree, m.Minibuffer, m.Echo}
 	for _, o := range flowOverlays {
 		if o == nil {
 			continue
 		}
-		if o.Draw(screen) {
+		if o.Draw() {
 			return true
 		}
 	}
@@ -198,7 +197,7 @@ func (m *overlayManagerStruct) Draw(screen tcell.Screen) bool {
 		if o == nil {
 			continue
 		}
-		if o.Draw(screen) {
+		if o.Draw() {
 			return true
 		}
 	}
@@ -211,7 +210,7 @@ func (m *overlayManagerStruct) Resize(ev tcell.EventResize) {
 		return
 	}
 
-	screenRect := utils.Rect{
+	screenRect := screen.Rect{
 		X:      0,
 		Y:      0,
 		Width:  w,
