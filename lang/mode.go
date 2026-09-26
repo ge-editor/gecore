@@ -34,4 +34,6 @@ type Mode interface {
 	GetDefaultSoftTab() bool
 	GetSoftTab() bool
 	SetSoftTab(bool)
+
+	RecommendedColumnWidth() int
 }

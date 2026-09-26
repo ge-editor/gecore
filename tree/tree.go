@@ -223,103 +223,185 @@ func (tr *Tree) SplitHorizontally() {
 }
 
 func (tr *Tree) InsertTop() {
-	current := rootTree
-	rootTree = &Tree{}
-	rootTree.top = &Tree{
-		parent: rootTree,
+	target := tr.parent
+	if target == nil {
+		return
+	}
+
+	// target の現在の中身を新しい bottom に退避する。
+	bottom := &Tree{
+		parent: target,
+		left:   target.left,
+		right:  target.right,
+		top:    target.top,
+		bottom: target.bottom,
+		split:  target.split,
+		leaf:   target.leaf,
+		Rect:   target.Rect,
+	}
+
+	if bottom.left != nil {
+		bottom.left.parent = bottom
+		bottom.right.parent = bottom
+	} else if bottom.top != nil {
+		bottom.top.parent = bottom
+		bottom.bottom.parent = bottom
+	}
+
+	// target 自身を新しい vertical split node に変身させる。
+	target.left = nil
+	target.right = nil
+	target.top = &Tree{
+		parent: target,
 		leaf:   tr.newLeaf("top"),
 	}
-	if current.leaf == nil {
-		rootTree.bottom = current
-		current.parent = rootTree
-	} else {
-		rootTree.bottom = &Tree{
-			parent: rootTree,
-			leaf:   current.leaf,
-		}
-	}
-	rootTree.Rect = current.Rect
-	rootTree.split = 0.5
+	target.bottom = bottom
+	target.leaf = nil
+	target.split = 0.5
 
-	ActiveTreeSet(rootTree.top)
-	rootTree.Resize(rootTree.Rect)
-}
-
-func (tr *Tree) InsertRight() {
-	current := rootTree
-	rootTree = &Tree{}
-	rootTree.right = &Tree{
-		parent: rootTree,
-		leaf:   tr.newLeaf("right"),
-	}
-	if current.leaf == nil {
-		rootTree.left = current
-		current.parent = rootTree
-	} else {
-		rootTree.left = &Tree{
-			parent: rootTree,
-			leaf:   current.leaf,
-		}
-	}
-	rootTree.Rect = current.Rect
-	rootTree.split = 0.5
-
-	ActiveTreeSet(rootTree.right)
-	rootTree.Resize(rootTree.Rect)
+	ActiveTreeSet(target.top)
+	target.Resize(target.Rect)
 }
 
 func (tr *Tree) InsertBottom() {
-	current := rootTree
-	rootTree = &Tree{}
-	rootTree.bottom = &Tree{
-		parent: rootTree,
+	target := tr.parent
+	if target == nil {
+		return
+	}
+
+	// target の現在の中身を新しい top に退避する。
+	top := &Tree{
+		parent: target,
+		left:   target.left,
+		right:  target.right,
+		top:    target.top,
+		bottom: target.bottom,
+		split:  target.split,
+		leaf:   target.leaf,
+		Rect:   target.Rect,
+	}
+
+	if top.left != nil {
+		top.left.parent = top
+		top.right.parent = top
+	} else if top.top != nil {
+		top.top.parent = top
+		top.bottom.parent = top
+	}
+
+	// target 自身を新しい vertical split node に変身させる。
+	target.left = nil
+	target.right = nil
+	target.top = top
+	target.bottom = &Tree{
+		parent: target,
 		leaf:   tr.newLeaf("bottom"),
 	}
-	if current.leaf == nil {
-		rootTree.top = current
-		current.parent = rootTree
-	} else {
-		rootTree.top = &Tree{
-			parent: rootTree,
-			leaf:   current.leaf,
-		}
-	}
-	rootTree.Rect = current.Rect
-	rootTree.split = 0.5
+	target.leaf = nil
+	target.split = 0.5
 
-	ActiveTreeSet(rootTree.bottom)
-	rootTree.Resize(rootTree.Rect)
+	ActiveTreeSet(target.bottom)
+	target.Resize(target.Rect)
+}
+
+func (tr *Tree) InsertRight() {
+	target := tr.parent
+	if target == nil {
+		return
+	}
+
+	// target の現在の中身を新しい left に退避する。
+	left := &Tree{
+		parent: target,
+		left:   target.left,
+		right:  target.right,
+		top:    target.top,
+		bottom: target.bottom,
+		split:  target.split,
+		leaf:   target.leaf,
+		Rect:   target.Rect,
+	}
+
+	if left.left != nil {
+		left.left.parent = left
+		left.right.parent = left
+	} else if left.top != nil {
+		left.top.parent = left
+		left.bottom.parent = left
+	}
+
+	// target 自身を新しい horizontal split node に変身させる。
+	target.left = left
+	target.right = &Tree{
+		parent: target,
+		leaf:   tr.newLeaf("right"),
+	}
+	target.top = nil
+	target.bottom = nil
+	target.leaf = nil
+	target.split = 0.5
+
+	ActiveTreeSet(target.right)
+	target.Resize(target.Rect)
 }
 
 func (tr *Tree) InsertLeft() {
-	current := rootTree
-	rootTree = &Tree{}
-	rootTree.left = &Tree{
-		parent: rootTree,
+	target := tr.parent
+	if target == nil {
+		return
+	}
+
+	// target の現在の中身を新しい right に退避する。
+	right := &Tree{
+		parent: target,
+		left:   target.left,
+		right:  target.right,
+		top:    target.top,
+		bottom: target.bottom,
+		split:  target.split,
+		leaf:   target.leaf,
+		Rect:   target.Rect,
+	}
+
+	if right.left != nil {
+		right.left.parent = right
+		right.right.parent = right
+	} else if right.top != nil {
+		right.top.parent = right
+		right.bottom.parent = right
+	}
+
+	// target 自身を新しい horizontal split node に変身させる。
+	target.left = &Tree{
+		parent: target,
 		leaf:   tr.newLeaf("left"),
 	}
-	if current.leaf == nil {
-		rootTree.right = current
-		current.parent = rootTree
-	} else {
-		rootTree.right = &Tree{
-			parent: rootTree,
-			leaf:   current.leaf,
-		}
-	}
-	rootTree.Rect = current.Rect
-	rootTree.split = 0.5
+	target.right = right
+	target.top = nil
+	target.bottom = nil
+	target.leaf = nil
+	target.split = 0.5
 
-	ActiveTreeSet(rootTree.left)
-	rootTree.Resize(rootTree.Rect)
+	ActiveTreeSet(target.left)
+	target.Resize(target.Rect)
 }
+
+var tree1, tree2 *Tree
 
 func (tr *Tree) SwitchSplitDirection() {
 	if tr.parent.top != nil {
-		tr.parent.left = tr.parent.top
-		tr.parent.right = tr.parent.bottom
+		if tr.parent.top == tree1 && tr.parent.bottom == tree2 {
+			tr.parent.left = tr.parent.bottom
+			tr.parent.right = tr.parent.top
+		} else {
+			tr.parent.left = tr.parent.top
+			tr.parent.right = tr.parent.bottom
+		}
 		tr.parent.top = nil
 		tr.parent.bottom = nil
+
+		tree1 = tr.parent.left
+		tree2 = tr.parent.right
 	} else if tr.parent.left != nil {
 		tr.parent.top = tr.parent.left
 		tr.parent.bottom = tr.parent.right
