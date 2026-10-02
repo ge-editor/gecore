@@ -36,4 +36,5 @@ type Mode interface {
 	SetSoftTab(bool)
 
 	RecommendedColumnWidth() int
+	PageLineCount() int
 }

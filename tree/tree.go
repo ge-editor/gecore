@@ -223,7 +223,8 @@ func (tr *Tree) SplitHorizontally() {
 }
 
 func (tr *Tree) InsertTop() {
-	target := tr.parent
+	// target := tr.parent
+	target := GetRootTree()
 	if target == nil {
 		return
 	}
@@ -264,7 +265,8 @@ func (tr *Tree) InsertTop() {
 }
 
 func (tr *Tree) InsertBottom() {
-	target := tr.parent
+	// target := tr.parent
+	target := GetRootTree()
 	if target == nil {
 		return
 	}
@@ -305,7 +307,8 @@ func (tr *Tree) InsertBottom() {
 }
 
 func (tr *Tree) InsertRight() {
-	target := tr.parent
+	// target := tr.parent
+	target := GetRootTree()
 	if target == nil {
 		return
 	}
@@ -346,7 +349,8 @@ func (tr *Tree) InsertRight() {
 }
 
 func (tr *Tree) InsertLeft() {
-	target := tr.parent
+	// target := tr.parent
+	target := GetRootTree()
 	if target == nil {
 		return
 	}
