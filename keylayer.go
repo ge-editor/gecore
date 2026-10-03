@@ -1,20 +1,22 @@
 // gecore/keylayer.go
 //
-// KeyLayer はキーイベント処理の「優先度付き多段パイプライン」を
-// 明示的なデータとして表現する。
+// KeyLayer represents one stage of the key event dispatch pipeline.
 //
-// これまで ge/key_dispatcher.go の dispatch() 関数に直列 if/switch として
-// ベタ書きされていた
+// The key dispatch pipeline is modeled as an ordered list of layers:
 //
 //	cancelKeyOnly -> macro -> globalKey -> minibuffer -> mode -> leaf
 //
-// という6段のキー階層を、優先度 (Priority) を持つレイヤーのリストとして
-// 明示化する。設計思想は gecore/cancelable_manager.go の CancelManager と
-// 同型 (Priority() を持つハンドラを登録し、上位から順に試す) であり、
-// 新しいパターンを持ち込むのではなく既存の設計を転用したもの。
+// Each layer has a priority and can be either exclusive or non-exclusive.
+// Layers are evaluated in priority order until an event is consumed.
 //
-// 各レイヤーは内部で好きなだけ keychord.RootNode を使ってよい。
-// KeyLayerManager はレイヤー同士の「優先順位」と「排他性」だけを扱う。
+// This follows the same design pattern as CancelManager: handlers expose
+// a priority and are evaluated from higher priority to lower priority.
+// KeyLayer therefore reuses an existing design rather than introducing
+// a separate dispatch mechanism.
+//
+// A layer may use any number of keychord.RootNode instances internally.
+// KeyLayerManager is responsible only for ordering the layers and
+// determining whether an event may proceed to the next layer.
 package gecore
 
 import (
@@ -25,48 +27,49 @@ import (
 	"github.com/ge-editor/keychord"
 )
 
-// KeyLayer は、キーディスパッチパイプラインの1段を表す。
+// KeyLayer represents one stage of the key dispatch pipeline.
 type KeyLayer interface {
-	// UI 表示やログに使うレイヤー名
+	// Name returns the name of the layer for UI display and logging.
 	Name() string
 
-	// このレイヤーが今キー入力を受け付ける状態か。
-	// false ならこのレイヤーは丸ごとスキップされ、Dispatch は呼ばれない。
+	// Active reports whether this layer is currently accepting key events.
+	// Inactive layers are skipped without calling Dispatch.
 	Active() bool
 
-	// Dispatch が DispatchNotFound / DispatchPrefix / DispatchInvalidAfterPrefix
-	// を返したとき、後続のレイヤーへイベントを流してよいかどうか。
+	// Exclusive reports whether this layer prevents the event from
+	// proceeding to subsequent layers.
 	//
-	// true (排他) の場合、後続レイヤー (リーフの自己挿入を含む) には
-	// 一切イベントを渡さない。
+	// For an exclusive layer, the event is consumed by the layer even when
+	// Dispatch returns DispatchNotFound, DispatchPrefix, or
+	// DispatchInvalidAfterPrefix.
 	//
-	// 例:
-	//   - cancelKeyOnly    : false (Ctrl+G 以外は普通に下へ流れてほしい)
-	//   - macro            : false (C-x e e e... の連続リプレイを妨げないため)
-	//   - globalKey        : false (該当しなければ普通の編集キーとして下へ流す)
-	//   - minibuffer       : IsActive() と同じ (アクティブなら排他)
-	//   - mode (modeManager): IsInMode() と同じ
-	//     (Push されたモード中は他のキー階層/リーフへ絶対漏らさない。
-	//     旧実装は Prefix/NotFound を無条件に下へ流していたため、
-	//     LeafOpMode 中の未知キーがリーフの自己挿入に抜けるバグがあった)
-	//   - leaf             : true (最終防衛ライン。ここで必ず消費される)
+	// Typical examples are:
+	//
+	//   - cancelKeyOnly: non-exclusive
+	//   - macro: non-exclusive
+	//   - globalKey: non-exclusive
+	//   - minibuffer: exclusive while active
+	//   - mode: exclusive while a mode is active
+	//   - leaf: exclusive as the final layer
 	Exclusive() bool
 
-	// 優先度。小さいほど先に試される。
+	// Priority determines the order in which layers are evaluated.
+	// Lower values are evaluated first.
 	Priority() int
 
-	// 実際のディスパッチ。string は echo 表示用のキー状態文字列
-	// (RootNode.Dispatch がそのまま返すものをそのまま使えばよい)。
+	// Dispatch processes a key event.
+	//
+	// The returned string is the current key state for display or logging.
+	// It may be passed through directly from keychord.RootNode.Dispatch.
 	Dispatch(ev tcell.EventKey) (string, keychord.KeyDispatchTransition)
 }
 
-// KeyStatusFunc はレイヤーの結果を通知するコールバック。
-// 旧 `prefix []string` パッケージグローバル変数が担っていた
-// echo 表示用の副作用を、呼び出し側 (ge パッケージ) に一本化して渡すためのもの。
+// KeyStatusFunc receives the result of a layer dispatch.
 //
-// 注意: 各 keychord.RootNode は内部で既に "C-x" のような
-// キー状態文字列を蓄積して Dispatch の戻り値として返しているため、
-// dispatch() 側で改めてグローバル変数に再集計する必要はない。
+// Key status reporting is kept outside the layer manager so that UI-related
+// side effects remain in the ge package. The keychord RootNode already
+// maintains its key state and returns it from Dispatch, so the manager does
+// not need to maintain a separate key-state buffer.
 type KeyStatusFunc func(layer KeyLayer, status string, res keychord.KeyDispatchTransition)
 
 type KeyLayerManagerStruct struct {
@@ -79,9 +82,11 @@ func KeyLayerManager() *KeyLayerManagerStruct {
 	return keyLayerManager
 }
 
-// Register はレイヤーを優先度順(昇順)に挿入する。
-// userleaf など将来の拡張は、ここに自分のレイヤーを Register するだけで
-// パイプラインに参加できる (ge/key_dispatcher.go 本体を触らずに済む)。
+// Register adds a layer to the dispatch pipeline.
+//
+// Layers are kept in ascending priority order. New layers can therefore
+// participate in key dispatch by registering themselves without modifying
+// the dispatch loop.
 func (m *KeyLayerManagerStruct) Register(l KeyLayer) {
 	if l == nil {
 		return
@@ -92,7 +97,9 @@ func (m *KeyLayerManagerStruct) Register(l KeyLayer) {
 	})
 }
 
-// Layers はデバッグ表示用に現在の登録順序を返す。
+// Layers returns the currently registered layers in dispatch order.
+//
+// The returned slice is intended for inspection and debugging.
 func (m *KeyLayerManagerStruct) Layers() []KeyLayer {
 	return m.layers
 }
@@ -101,10 +108,14 @@ func (m *KeyLayerManagerStruct) Reset() {
 	m.layers = nil
 }
 
-// Dispatch は登録済みレイヤーを優先度順に試し、
-// 最初に「イベントを消費した」レイヤーで処理を止める。
+// Dispatch evaluates the registered layers in priority order.
 //
-// 旧 dispatch() 関数の6段 if/switch を置き換えるのがこの1メソッド。
+// A layer may consume the event, pass it to the next layer, or prevent
+// further dispatch according to its Exclusive setting.
+//
+// A successful dispatch resets all keychord root nodes. Keeping this
+// responsibility here ensures that every successfully executed key
+// operation follows the same reset rule.
 func (m *KeyLayerManagerStruct) Dispatch(ev tcell.EventKey, onStatus KeyStatusFunc) {
 	for _, l := range m.layers {
 		if !l.Active() {
@@ -115,10 +126,6 @@ func (m *KeyLayerManagerStruct) Dispatch(ev tcell.EventKey, onStatus KeyStatusFu
 
 		switch res {
 		case keychord.DispatchExecuted:
-			// リセットの責任をここ1箇所に集約する。
-			// 旧実装では ResetAllRootNodes() が複数箇所に個別に
-			// 書かれており、「実行後は必ずリセットする」という
-			// ルールがコード規約としてしか存在しなかった。
 			keychord.ResetAllRootNodes()
 			if onStatus != nil {
 				onStatus(l, status, res)
@@ -132,17 +139,9 @@ func (m *KeyLayerManagerStruct) Dispatch(ev tcell.EventKey, onStatus KeyStatusFu
 			if l.Exclusive() {
 				return
 			}
-			// 非排他レイヤーのプレフィックス状態は表示だけして
-			// 次のレイヤーも試す (globalKey の途中入力表示と、
-			// 下位レイヤーの通常キー処理を両立させる)。
 
 		case keychord.DispatchNotFound:
 			if l.Exclusive() {
-				// 旧実装のバグ修正点:
-				// Push されたモードが未知キーで DispatchNotFound を
-				// 返しても、以前はそのままリーフの自己挿入まで
-				// 抜けてしまっていた。Exclusive() なレイヤーは
-				// NotFound でも下に流さない。
 				return
 			}
 		}
