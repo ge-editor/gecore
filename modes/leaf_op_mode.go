@@ -73,19 +73,23 @@ func (e LeafOpMode) Remove() {
 }
 
 func (e LeafOpMode) InsertTop() {
-	tree.ActiveTreeGet().InsertTop()
+	// self parent
+	// tree.ActiveTreeGet().InsertTop(tree.ActiveTreeGet())
+
+	// root
+	tree.ActiveTreeGet().InsertTop(tree.GetRootTree())
 }
 
 func (e LeafOpMode) InsertRight() {
-	tree.ActiveTreeGet().InsertRight()
+	tree.ActiveTreeGet().InsertRight(tree.GetRootTree())
 }
 
 func (e LeafOpMode) InsertBottom() {
-	tree.ActiveTreeGet().InsertBottom()
+	tree.ActiveTreeGet().InsertBottom(tree.GetRootTree())
 }
 
 func (e LeafOpMode) InsertLeft() {
-	tree.ActiveTreeGet().InsertLeft()
+	tree.ActiveTreeGet().InsertLeft(tree.GetRootTree())
 }
 
 func (e LeafOpMode) SwitchSplitDirection() {

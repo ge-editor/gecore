@@ -222,9 +222,9 @@ func (tr *Tree) SplitHorizontally() {
 	tr.Resize(tr.Rect)
 }
 
-func (tr *Tree) InsertTop() {
+func (tr *Tree) InsertTop(target *Tree) {
 	// target := tr.parent
-	target := GetRootTree()
+	// target := GetRootTree()
 	if target == nil {
 		return
 	}
@@ -264,9 +264,9 @@ func (tr *Tree) InsertTop() {
 	target.Resize(target.Rect)
 }
 
-func (tr *Tree) InsertBottom() {
+func (tr *Tree) InsertBottom(target *Tree) {
 	// target := tr.parent
-	target := GetRootTree()
+	// target := GetRootTree()
 	if target == nil {
 		return
 	}
@@ -306,9 +306,9 @@ func (tr *Tree) InsertBottom() {
 	target.Resize(target.Rect)
 }
 
-func (tr *Tree) InsertRight() {
+func (tr *Tree) InsertRight(target *Tree) {
 	// target := tr.parent
-	target := GetRootTree()
+	// target := GetRootTree()
 	if target == nil {
 		return
 	}
@@ -348,9 +348,9 @@ func (tr *Tree) InsertRight() {
 	target.Resize(target.Rect)
 }
 
-func (tr *Tree) InsertLeft() {
+func (tr *Tree) InsertLeft(target *Tree) {
 	// target := tr.parent
-	target := GetRootTree()
+	// target := GetRootTree()
 	if target == nil {
 		return
 	}
