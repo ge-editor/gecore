@@ -59,46 +59,46 @@ func (o *LeafOpMode) CurrentMode() mode.Mode {
 
 // 'h'
 func (e LeafOpMode) SplitHorizontally() {
-	tree.ActiveTreeGet().SplitHorizontally()
+	tree.GetActiveTree().SplitHorizontally()
 }
 
 // 'v'
 func (e LeafOpMode) SplitVertically() {
-	tree.ActiveTreeGet().SplitVertically()
+	tree.GetActiveTree().SplitVertically()
 }
 
 // 'k'
 func (e LeafOpMode) Remove() {
-	tree.ActiveTreeGet().DeleteWindow()
+	tree.GetActiveTree().DeleteWindow()
 }
 
 func (e LeafOpMode) InsertTop() {
 	// self parent
-	// tree.ActiveTreeGet().InsertTop(tree.ActiveTreeGet())
+	// tree.GetActiveTree().InsertTop(tree.GetActiveTree())
 
 	// root
-	tree.ActiveTreeGet().InsertTop(tree.GetRootTree())
+	tree.GetActiveTree().InsertTop(tree.GetRootTree())
 }
 
 func (e LeafOpMode) InsertRight() {
-	tree.ActiveTreeGet().InsertRight(tree.GetRootTree())
+	tree.GetActiveTree().InsertRight(tree.GetRootTree())
 }
 
 func (e LeafOpMode) InsertBottom() {
-	tree.ActiveTreeGet().InsertBottom(tree.GetRootTree())
+	tree.GetActiveTree().InsertBottom(tree.GetRootTree())
 }
 
 func (e LeafOpMode) InsertLeft() {
-	tree.ActiveTreeGet().InsertLeft(tree.GetRootTree())
+	tree.GetActiveTree().InsertLeft(tree.GetRootTree())
 }
 
 func (e LeafOpMode) SwitchSplitDirection() {
-	tree.ActiveTreeGet().SwitchSplitDirection()
+	tree.GetActiveTree().SwitchSplitDirection()
 }
 
 // case tcell.KeyCtrlN, tcell.KeyDown:
 func (e LeafOpMode) NearestVSplitStepResizeIncrement() {
-	node := tree.ActiveTreeGet().NearestVSplit()
+	node := tree.GetActiveTree().NearestVSplit()
 	if node != nil {
 		node.StepResize(1)
 	}
@@ -106,7 +106,7 @@ func (e LeafOpMode) NearestVSplitStepResizeIncrement() {
 
 // case tcell.KeyCtrlP, tcell.KeyUp:
 func (e LeafOpMode) NearestVSplitStepResizeDecrement() {
-	node := tree.ActiveTreeGet().NearestVSplit()
+	node := tree.GetActiveTree().NearestVSplit()
 	if node != nil {
 		node.StepResize(-1)
 	}
@@ -114,7 +114,7 @@ func (e LeafOpMode) NearestVSplitStepResizeDecrement() {
 
 // case tcell.KeyCtrlF, tcell.KeyRight:
 func (e LeafOpMode) NearestHSplitStepResizeIncrement() {
-	node := tree.ActiveTreeGet().NearestHSplit()
+	node := tree.GetActiveTree().NearestHSplit()
 	if node != nil {
 		node.StepResize(1)
 	}
@@ -122,7 +122,7 @@ func (e LeafOpMode) NearestHSplitStepResizeIncrement() {
 
 // case tcell.KeyCtrlB, tcell.KeyLeft:
 func (e LeafOpMode) NearestHSplitStepResizeDecrement() {
-	node := tree.ActiveTreeGet().NearestHSplit()
+	node := tree.GetActiveTree().NearestHSplit()
 	if node != nil {
 		node.StepResize(-1)
 	}
@@ -131,7 +131,7 @@ func (e LeafOpMode) NearestHSplitStepResizeDecrement() {
 func (e LeafOpMode) SelectName(tev tcell.EventKey) bool {
 	leaf := e.OpMode.SelectName(tev.Str())
 	if leaf != nil {
-		tree.ActiveTreeSet(leaf)
+		tree.SetActiveTree(leaf)
 		return true
 	}
 	return false

@@ -2,6 +2,7 @@ package tree
 
 import (
 	"github.com/ge-editor/gecore/screen"
+	"github.com/ge-editor/gelog"
 )
 
 // Context Root に名を変更 2026-01-24 Sat
@@ -19,7 +20,7 @@ func SetRootTree(tr *Tree) {
 
 var activeTree *Tree
 
-func ActiveTreeSet(tr *Tree) {
+func SetActiveTree(tr *Tree) {
 	if activeTree != nil {
 		leaf := activeTree.GetLeaf()
 		if leaf != nil {
@@ -30,7 +31,7 @@ func ActiveTreeSet(tr *Tree) {
 	activeTree.GetLeaf().Active(true)
 }
 
-func ActiveTreeGet() *Tree {
+func GetActiveTree() *Tree {
 	return activeTree
 }
 
@@ -57,6 +58,9 @@ type Tree struct {
 	bottom *Tree
 
 	split float32
+	// maximize 前の split を保存する (splitSaved が true の間のみ有効)
+	savedSplit float32
+	splitSaved bool
 
 	screen.Rect
 
@@ -73,7 +77,7 @@ func (tr *Tree) GetLeaf() Leaf {
 
 /*
 	 func isActive(t *Tree) Stat {
-		if t == ActiveTreeGet() {
+		if t == GetActiveTree() {
 			return Active
 		}
 		return Inactive
@@ -190,6 +194,7 @@ func (tr *Tree) newLeaf(direction string) Leaf {
 
 // Split Tree. Set new Active Tree to active.
 func (tr *Tree) SplitVertically() {
+	gelog.Debug("tr", tr)
 	tr.top = &Tree{
 		parent: tr,
 		leaf:   tr.leaf,
@@ -201,7 +206,7 @@ func (tr *Tree) SplitVertically() {
 	tr.split = 0.5
 	tr.leaf = nil
 
-	ActiveTreeSet(tr.top)
+	SetActiveTree(tr.top)
 	tr.Resize(tr.Rect)
 }
 
@@ -218,15 +223,15 @@ func (tr *Tree) SplitHorizontally() {
 	tr.split = 0.5
 	tr.leaf = nil
 
-	ActiveTreeSet(tr.left)
+	SetActiveTree(tr.left)
 	tr.Resize(tr.Rect)
 }
 
-func (tr *Tree) InsertTop(target *Tree) {
+func (tr *Tree) InsertTop(target *Tree) (*Tree, *Tree) {
 	// target := tr.parent
 	// target := GetRootTree()
 	if target == nil {
-		return
+		return nil, nil
 	}
 
 	// target の現在の中身を新しい bottom に退避する。
@@ -260,15 +265,17 @@ func (tr *Tree) InsertTop(target *Tree) {
 	target.leaf = nil
 	target.split = 0.5
 
-	ActiveTreeSet(target.top)
+	SetActiveTree(target.top)
 	target.Resize(target.Rect)
+
+	return target.top, target.bottom
 }
 
-func (tr *Tree) InsertBottom(target *Tree) {
+func (tr *Tree) InsertBottom(target *Tree) (*Tree, *Tree) {
 	// target := tr.parent
 	// target := GetRootTree()
 	if target == nil {
-		return
+		return nil, nil
 	}
 
 	// target の現在の中身を新しい top に退避する。
@@ -302,15 +309,17 @@ func (tr *Tree) InsertBottom(target *Tree) {
 	target.leaf = nil
 	target.split = 0.5
 
-	ActiveTreeSet(target.bottom)
+	SetActiveTree(target.bottom)
 	target.Resize(target.Rect)
+
+	return target.top, target.bottom
 }
 
-func (tr *Tree) InsertRight(target *Tree) {
+func (tr *Tree) InsertRight(target *Tree) (*Tree, *Tree) {
 	// target := tr.parent
 	// target := GetRootTree()
 	if target == nil {
-		return
+		return nil, nil
 	}
 
 	// target の現在の中身を新しい left に退避する。
@@ -344,15 +353,17 @@ func (tr *Tree) InsertRight(target *Tree) {
 	target.leaf = nil
 	target.split = 0.5
 
-	ActiveTreeSet(target.right)
+	SetActiveTree(target.right)
 	target.Resize(target.Rect)
+
+	return target.left, target.right
 }
 
-func (tr *Tree) InsertLeft(target *Tree) {
+func (tr *Tree) InsertLeft(target *Tree) (*Tree, *Tree) {
 	// target := tr.parent
 	// target := GetRootTree()
 	if target == nil {
-		return
+		return nil, nil
 	}
 
 	// target の現在の中身を新しい right に退避する。
@@ -386,8 +397,113 @@ func (tr *Tree) InsertLeft(target *Tree) {
 	target.leaf = nil
 	target.split = 0.5
 
-	ActiveTreeSet(target.left)
+	SetActiveTree(target.left)
 	target.Resize(target.Rect)
+
+	return target.left, target.right
+}
+
+// 最大化時に、押しつぶされる側へ最低限残すセル数
+const minOtherCells = 1
+
+// maximize-active-window
+// active leaf から root までの経路上の分割比を ratio (例: 0.99) に寄せ、
+// それ以外の leaf を最小化する。元の split は初回のみ保存する。
+func (tr *Tree) MaximizeActive(ratio float32) {
+	active := GetActiveTree()
+	if active == nil || active.parent == nil { // 単一 view なら何もしない
+		return
+	}
+	if ratio < 0 {
+		ratio = 0
+	}
+	if ratio > 1 {
+		ratio = 1
+	}
+
+	child := active
+	for p := child.parent; p != nil; child, p = p, p.parent {
+		// 連続して呼ばれても、最初の(本来の) split を保持する
+		if !p.splitSaved {
+			p.savedSplit = p.split
+			p.splitSaved = true
+		}
+
+		// 反対側に最低 minOtherCells を残す (0 サイズの leaf を避ける)
+		size := p.Rect.Height
+		if p.left != nil {
+			size = p.Rect.Width
+		}
+		r := ratio
+		if size > 0 {
+			if limit := 1 - float32(minOtherCells)/float32(size); r > limit {
+				r = limit
+			}
+		}
+
+		// split は left/top の割合なので、active が right/bottom 側なら反転する
+		if child == p.right || child == p.bottom {
+			r = 1 - r
+		}
+		p.split = r
+	}
+
+	GetRootTree().Resize(screen.Get().RootRect())
+}
+
+// restore-window-sizes
+// MaximizeActive で保存した split を全ノードに復元する。
+func (tr *Tree) RestoreSplits() {
+	root := GetRootTree()
+	if root == nil {
+		return
+	}
+	root.restoreSplits()
+	root.Resize(screen.Get().RootRect())
+}
+
+func (tr *Tree) restoreSplits() {
+	if tr.splitSaved {
+		tr.split = tr.savedSplit
+		tr.splitSaved = false
+	}
+	if tr.left != nil {
+		tr.left.restoreSplits()
+		tr.right.restoreSplits()
+	} else if tr.top != nil {
+		tr.top.restoreSplits()
+		tr.bottom.restoreSplits()
+	}
+}
+
+// 最大化されているか
+func (tr *Tree) IsMaximized() bool {
+	maximized := false
+	var walk func(*Tree)
+	walk = func(t *Tree) {
+		if t.splitSaved {
+			maximized = true
+			return
+		}
+		if t.left != nil {
+			walk(t.left)
+			walk(t.right)
+		} else if t.top != nil {
+			walk(t.top)
+			walk(t.bottom)
+		}
+	}
+	walk(GetRootTree())
+	return maximized
+}
+
+// トグル用 (最大化中なら復元、そうでなければ最大化)
+func (tr *Tree) ToggleMaximizeActive(ratio float32) {
+	if tr.IsMaximized() {
+		tr.RestoreSplits()
+	} else {
+		tr.MaximizeActive(ratio)
+	}
 }
 
 var tree1, tree2 *Tree
@@ -520,41 +636,87 @@ func (tr *Tree) firstLeafNode() *Tree {
 // delete-window
 // C-x 0
 func (tr *Tree) DeleteWindow() {
-	if ActiveTreeGet().parent == nil { // Root Tree
+	if GetActiveTree().parent == nil { // Root Tree
 		return
 	}
 
-	sib2 := ActiveTreeGet().Sibling()
+	sib2 := GetActiveTree().Sibling()
 	var sib Tree = *sib2
-	ActiveTreeGet().parent.left = sib.left
-	ActiveTreeGet().parent.right = sib.right
-	ActiveTreeGet().parent.top = sib.top
-	ActiveTreeGet().parent.bottom = sib.bottom
-	// ActiveTreeGet().parent.split = sib.split // The size is the same as the parent size.
-	ActiveTreeGet().parent.leaf = sib.leaf
+	GetActiveTree().parent.left = sib.left
+	GetActiveTree().parent.right = sib.right
+	GetActiveTree().parent.top = sib.top
+	GetActiveTree().parent.bottom = sib.bottom
+	// GetActiveTree().parent.split = sib.split // The size is the same as the parent size.
+	GetActiveTree().parent.leaf = sib.leaf
 	/*
-		if ActiveTreeGet().parent.leaf != nil {
-			(*ActiveTreeGet().parent.leaf).SetParentTree(ActiveTreeGet().parent)
+		if GetActiveTree().parent.leaf != nil {
+			(*GetActiveTree().parent.leaf).SetParentTree(GetActiveTree().parent)
 		}
 	*/
 
-	if ActiveTreeGet().parent.left != nil {
-		ActiveTreeGet().parent.left.parent = sib.parent
-		ActiveTreeGet().parent.right.parent = sib.parent
-	} else if ActiveTreeGet().parent.top != nil {
-		ActiveTreeGet().parent.top.parent = sib.parent
-		ActiveTreeGet().parent.bottom.parent = sib.parent
+	if GetActiveTree().parent.left != nil {
+		GetActiveTree().parent.left.parent = sib.parent
+		GetActiveTree().parent.right.parent = sib.parent
+	} else if GetActiveTree().parent.top != nil {
+		GetActiveTree().parent.top.parent = sib.parent
+		GetActiveTree().parent.bottom.parent = sib.parent
 	}
 
-	ActiveTreeSet(sib.parent.firstLeafNode())
+	SetActiveTree(sib.parent.firstLeafNode())
 
 	GetRootTree().Resize(screen.Get().RootRect())
 }
 
+// delete-other-windows
+// C-x 1
+// Kill all views but active
+func (tr *Tree) DeleteOtherWindows() {
+	active := GetActiveTree()
+	root := GetRootTree()
+	if active == nil || root == nil {
+		return
+	}
+	// すでに単一 view なら何もしない
+	if root.leaf != nil {
+		return
+	}
+
+	// 残す leaf を退避する
+	keep := active.leaf
+	if keep == nil {
+		return
+	}
+
+	// 他の leaf を破棄する
+	root.ForEachLeaf(func(l Leaf) {
+		if l != keep {
+			closeLeaf(l)
+		}
+	})
+
+	// root を leaf ノードに戻す
+	root.left = nil
+	root.right = nil
+	root.top = nil
+	root.bottom = nil
+	root.split = 0
+	root.leaf = keep
+
+	SetActiveTree(root)
+	root.Resize(screen.Get().RootRect())
+}
+
+// 破棄対象の leaf に後始末が必要な場合のみ実装する
+func closeLeaf(l Leaf) {
+	if c, ok := l.(interface{ Close() }); ok {
+		c.Close()
+	}
+}
+
 func (tr *Tree) NextInCycle() {
-	next := ActiveTreeGet().nextInCycle()
+	next := GetActiveTree().nextInCycle()
 	if next != nil && next.leaf != nil {
-		ActiveTreeSet(next)
+		SetActiveTree(next)
 	}
 }
 

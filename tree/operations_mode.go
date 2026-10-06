@@ -32,7 +32,7 @@ func (v OpMode) Draw() {
 			return
 		}
 		bg := tcell.ColorNames["blue"]
-		if leaf == ActiveTreeGet() {
+		if leaf == GetActiveTree() {
 			bg = tcell.ColorNames["red"]
 		}
 		r := leaf.Rect
@@ -44,7 +44,7 @@ func (v OpMode) Draw() {
 
 	// draw splitters
 	// r = v.tree.Rect
-	r := ActiveTreeGet().Rect
+	r := GetActiveTree().Rect
 	var x, y int
 
 	// horizontal ----------------------
