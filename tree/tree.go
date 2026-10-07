@@ -67,6 +67,10 @@ type Tree struct {
 	leaf Leaf
 }
 
+func (tr *Tree) Parent() *Tree {
+	return tr.parent
+}
+
 func (tr *Tree) SetLeaf(leaf Leaf) {
 	tr.leaf = leaf
 }

@@ -3,6 +3,7 @@ package tree
 import (
 	"github.com/gdamore/tcell/v3"
 
+	"github.com/ge-editor/gecore/excommand"
 	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/keychord"
 )
@@ -22,4 +23,6 @@ type Leaf interface {
 	Resume()
 	Init()
 	WillClose()
+
+	Commands() []excommand.ExCommand
 }

@@ -1,46 +1,18 @@
-// ESC-x, execute-extended-command
+// gecore/excommand/excommand.go
 
 package excommand
 
-type ExCommand struct {
-	Name        string
-	Aliases     []string
-	Description string
+import "context"
 
-	Parent   *ExCommand
-	Children []*ExCommand
+type ExCommand interface {
+	Name() string
+	Aliases() []string
+	Description() string
 
-	// 候補生成
-	Complete CompletionProvider
-
-	// 実行
-	Run func(ctx Context, args []string) error
+	// handled=false なら親、または次の registry に解決を続ける。
+	Execute(ctx context.Context, args []string) (handled bool, err error)
 }
 
-func (c *ExCommand) FullName() string {
-	if c.Parent == nil {
-		return c.Name
-	}
-
-	return c.Parent.FullName() + " " + c.Name
-}
-
-// type CompletionProvider func(ctx Context) []string
-type CompletionProvider interface {
-	Complete(ctx Context, input string) []Candidate
-}
-
-type ParsedExCommand struct {
-	Name string
-	Args []string
-}
-
-type ExCommandHistory struct {
-	items []string
-	index int
-}
-
-type ExCommandError struct {
-	Message string
-	Hint    string
+type CommandProvider interface {
+	Commands() []ExCommand
 }
