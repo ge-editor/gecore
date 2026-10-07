@@ -34,8 +34,8 @@ func Complete(commands []ExCommand, input string) []Candidate {
 
 			seen[key] = struct{}{}
 			candidates = append(candidates, Candidate{
-				Value:          value,
-				Description:    cmd.Description(),
+				Value: value,
+				// Description:    cmd.Description(),
 				Command:        cmd,
 				MatchedIndexes: prefixIndexes(value, input),
 				Score:          utf8.RuneCountInString(input),
