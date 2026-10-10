@@ -7,7 +7,7 @@ require (
 	github.com/gdamore/tcell/v3 v3.5.0
 	github.com/ge-editor/gelog v0.1.8
 	github.com/ge-editor/keychord v0.1.8
-	github.com/ge-editor/theme v0.1.13
+	github.com/ge-editor/theme v0.1.14
 	github.com/ge-editor/utils v0.1.8
 )
 
