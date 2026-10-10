@@ -1,6 +1,8 @@
 package tree
 
 import (
+	"context"
+
 	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/gelog"
 )
@@ -88,19 +90,19 @@ func (tr *Tree) GetLeaf() Leaf {
 	}
 */
 
-func (tr *Tree) Draw() bool {
+func (tr *Tree) Draw(ctx context.Context) bool {
 	if tr.left != nil {
-		if tr.left.Draw() {
+		if tr.left.Draw(ctx) {
 			return true
 		}
-		return tr.right.Draw()
+		return tr.right.Draw(ctx)
 	} else if tr.top != nil {
-		if tr.top.Draw() {
+		if tr.top.Draw(ctx) {
 			return true
 		}
-		return tr.bottom.Draw()
+		return tr.bottom.Draw(ctx)
 	} else {
-		return tr.leaf.Draw()
+		return tr.leaf.Draw(ctx)
 	}
 }
 

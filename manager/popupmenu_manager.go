@@ -3,6 +3,8 @@
 package manager
 
 import (
+	"context"
+
 	"github.com/gdamore/tcell/v3"
 
 	"github.com/ge-editor/gecore"
@@ -115,7 +117,7 @@ func (pm *PopupmenuManagerStruct) Resize(overallRect screen.Rect) {
 	// overlay.OverlayManager().Layout(screen.Get().Rect) ///////////////no!
 }
 
-func (pm *PopupmenuManagerStruct) Draw() bool {
+func (pm *PopupmenuManagerStruct) Draw(ctx context.Context) bool {
 	if !pm.active || pm.session == nil {
 		return false
 	}

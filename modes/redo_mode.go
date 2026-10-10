@@ -3,6 +3,8 @@
 package modes
 
 import (
+	"context"
+
 	"github.com/ge-editor/gecore/mode"
 	"github.com/ge-editor/keychord"
 )
@@ -30,7 +32,7 @@ func (m *RedoMode) Name() string             { return "RedoMode" }
 func (m *RedoMode) Keys() *keychord.RootNode { return m.RootNode }
 func (m *RedoMode) WillEnter()               {}
 func (m *RedoMode) WillExit()                {}
-func (m *RedoMode) Draw()                    {}
+func (m *RedoMode) Draw(ctx context.Context) {}
 
 // --- Mode pointer ---
 func (m *RedoMode) CurrentMode() mode.Mode { return m }

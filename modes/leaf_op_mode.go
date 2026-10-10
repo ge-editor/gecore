@@ -1,6 +1,8 @@
 package modes
 
 import (
+	"context"
+
 	"github.com/gdamore/tcell/v3"
 
 	"github.com/ge-editor/gecore"
@@ -46,7 +48,7 @@ func (o *LeafOpMode) WillExit() {
 
 }
 
-func (o *LeafOpMode) Draw() {
+func (o *LeafOpMode) Draw(ctx context.Context) {
 	gecore.Echo.AddText("view operations mode")
 	o.OpMode.Draw()
 }

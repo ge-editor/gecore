@@ -1,6 +1,8 @@
 package tree
 
 import (
+	"context"
+
 	"github.com/gdamore/tcell/v3"
 
 	"github.com/ge-editor/gecore/excommand"
@@ -12,7 +14,7 @@ type Leaf interface {
 	LeafType() LeafType
 
 	Resize(screen.Rect)
-	Draw() bool
+	Draw(context.Context) bool
 	Kill(Leaf, bool) Leaf
 	Active(bool)
 

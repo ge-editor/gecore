@@ -2,6 +2,7 @@
 package gecore
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gdamore/tcell/v3"
@@ -75,7 +76,7 @@ func (e *EchoStruct) Resize(overlayRect screen.Rect) {
 	e.overlayRect = overlayRect
 }
 
-func (e *EchoStruct) Draw() bool {
+func (e *EchoStruct) Draw(ctx context.Context) bool {
 	screen := screen.Get()
 
 	for x := 0; x < e.overlayRect.Width; x++ {

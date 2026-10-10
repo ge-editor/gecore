@@ -10,6 +10,8 @@
 package modes
 
 import (
+	"context"
+
 	"github.com/ge-editor/gecore"
 	"github.com/ge-editor/gecore/mode"
 	"github.com/ge-editor/keychord"
@@ -72,7 +74,7 @@ func (qm *QuittingMode) WillExit() {
 	qm.QuitGuardResolver.WillExit()
 }
 
-func (qm *QuittingMode) Draw() {
+func (qm *QuittingMode) Draw(ctx context.Context) {
 	// 呼び出し不要
 	// qm.QuitGuardResolver.Draw()
 }

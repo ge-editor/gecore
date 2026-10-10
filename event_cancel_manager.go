@@ -21,36 +21,7 @@ func NewEventCancelManager(parent context.Context) *EventCancelManager {
 }
 
 /*
-	 func (m *EventCancelManager) Get(key string) context.Context {
-		m.mu.Lock()
-		defer m.mu.Unlock()
-
-		ctx, ok := m.ctxMap[key]
-		if !ok {
-			ctx, cancel := context.WithCancel(m.parent)
-			m.ctxMap[key] = ctx
-			m.cancel[key] = cancel
-		}
-
-		return ctx
-	}
-*/
-/* func (m *EventCancelManager) Get(key string) context.Context {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	ctx, ok := m.ctxMap[key]
-	if !ok {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithCancel(m.parent)
-		m.ctxMap[key] = ctx
-		m.cancel[key] = cancel
-	}
-
-	return ctx
-}
-*/
-
+Abolition
 func (m *EventCancelManager) Get(key string) context.Context {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -58,16 +29,11 @@ func (m *EventCancelManager) Get(key string) context.Context {
 	ctx, ok := m.ctxMap[key]
 	if !ok {
 		return nil
-		/*
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithCancel(m.parent)
-			m.ctxMap[key] = ctx
-			m.cancel[key] = cancel
-		*/
 	}
 
 	return ctx
 }
+*/
 
 func (m *EventCancelManager) Rotate(key string) context.Context {
 	m.mu.Lock()

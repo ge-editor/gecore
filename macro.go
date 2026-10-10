@@ -1,6 +1,8 @@
 package gecore
 
 import (
+	"context"
+
 	"github.com/gdamore/tcell/v3"
 
 	"github.com/ge-editor/gecore/mode"
@@ -38,7 +40,7 @@ func (m *MacroModeStruct) Name() string             { return "MacroMode" }
 func (m *MacroModeStruct) Keys() *keychord.RootNode { return m.RootNode }
 func (m *MacroModeStruct) WillEnter()               {}
 func (m *MacroModeStruct) WillExit()                {}
-func (m *MacroModeStruct) Draw()                    {}
+func (m *MacroModeStruct) Draw(ctx context.Context) {}
 
 // --- Macro functions ---
 func (m *MacroModeStruct) StartRecording() {

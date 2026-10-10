@@ -1,6 +1,8 @@
 package mode
 
 import (
+	"context"
+
 	"github.com/ge-editor/keychord"
 )
 
@@ -18,7 +20,7 @@ type Mode interface {
 
 	WillEnter()
 	WillExit()
-	Draw()
+	Draw(ctx context.Context)
 
 	// 現在の Mode のポインタを返す
 	CurrentMode() Mode

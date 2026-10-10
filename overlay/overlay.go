@@ -3,6 +3,8 @@
 package overlay
 
 import (
+	"context"
+
 	"github.com/gdamore/tcell/v3"
 
 	"github.com/ge-editor/gecore/screen"
@@ -11,7 +13,7 @@ import (
 type Overlay interface {
 	RequiredHeight() int
 	Resize(overlayRect screen.Rect)
-	Draw() bool
+	Draw(context.Context) bool
 	IsActive() bool
 }
 
@@ -183,13 +185,13 @@ func (m *overlayManagerStruct) Layout(screenRect screen.Rect) screen.Rect {
 }
 
 // Draw draws all overlays in registration order.
-func (m *overlayManagerStruct) Draw() bool {
+func (m *overlayManagerStruct) Draw(ctx context.Context) bool {
 	flowOverlays := []Overlay{m.Tree, m.Minibuffer, m.Echo}
 	for _, o := range flowOverlays {
 		if o == nil {
 			continue
 		}
-		if o.Draw() {
+		if o.Draw(ctx) {
 			return true
 		}
 	}
@@ -197,7 +199,7 @@ func (m *overlayManagerStruct) Draw() bool {
 		if o == nil {
 			continue
 		}
-		if o.Draw() {
+		if o.Draw(ctx) {
 			return true
 		}
 	}
