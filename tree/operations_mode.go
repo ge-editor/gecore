@@ -27,7 +27,7 @@ func NewOpMode(viewNames string) *OpMode {
 func (v OpMode) Draw() {
 	// draw views names
 	name := 0
-	rootTree.Traverse(func(leaf *Tree) {
+	GetRootTree().Traverse(func(leaf *Tree) {
 		if name >= len(v.viewNames) {
 			return
 		}
@@ -75,7 +75,7 @@ func (v OpMode) SelectName(str string) *Tree {
 	var sel *Tree = nil
 	name := 0
 	// v.tree.Traverse(func(leaf *tree.Tree) {
-	rootTree.Traverse(func(leaf *Tree) {
+	GetRootTree().Traverse(func(leaf *Tree) {
 		if name >= len(v.viewNames) {
 			return
 		}

@@ -9,32 +9,50 @@ import (
 
 // Context Root に名を変更 2026-01-24 Sat
 
-// Want to be able to perform dynamic screen switching by being able to replace the RootTree
-var rootTree *Tree
-
+// RootTree の所有者は roottrees.go の RootTrees。
+// 以下は「現在表示中の RootTree」への互換アクセサ。
 func GetRootTree() *Tree {
-	return rootTree
+	rt := currentRoot.Load()
+	if rt == nil {
+		return nil
+	}
+	return rt.Root
 }
 
+// SetRootTree sets the Root of the current RootTreeStruct.
+// If none exists yet, a "default" RootTreeStruct is created, registered
+// in RootTrees and made current.
 func SetRootTree(tr *Tree) {
-	rootTree = tr
+	rt := currentRoot.Load()
+	if rt == nil {
+		rt = &RootTreeStruct{Name: "default"}
+		AddRootTree(rt)
+		currentRoot.Store(rt)
+	}
+	rt.Root = tr
 }
 
-var activeTree *Tree
-
+// SetActiveTree sets the active Tree of the current RootTreeStruct.
 func SetActiveTree(tr *Tree) {
-	if activeTree != nil {
-		leaf := activeTree.GetLeaf()
-		if leaf != nil {
-			activeTree.GetLeaf().Active(false)
+	rt := currentRoot.Load()
+	if rt == nil {
+		return
+	}
+	if rt.Active != nil {
+		if leaf := rt.Active.GetLeaf(); leaf != nil {
+			leaf.Active(false)
 		}
 	}
-	activeTree = tr
-	activeTree.GetLeaf().Active(true)
+	rt.Active = tr
+	tr.GetLeaf().Active(true)
 }
 
 func GetActiveTree() *Tree {
-	return activeTree
+	rt := currentRoot.Load()
+	if rt == nil {
+		return nil
+	}
+	return rt.Active
 }
 
 // Create a new Tree and assign view
