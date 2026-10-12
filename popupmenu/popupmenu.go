@@ -42,9 +42,10 @@ func NewSession(
 const CURSOR_THRESHOLD = 2
 
 type PopupmenuStruct struct {
-	items     []string
-	itemIndex int
-	active    bool
+	columnTitle string
+	items       []string
+	itemIndex   int
+	active      bool
 
 	overlayRect screen.Rect // popupmenu を配置する領域
 	popupRect   screen.Rect // popupmenu の位置とサイズ
@@ -105,6 +106,12 @@ func (p *PopupmenuStruct) SetPopupPos(x, y int) {
 	p.popupRect.Y = y
 }
 
+func (p *PopupmenuStruct) SetColumnTitle(title string) {
+	p.columnTitle = title
+	p.calcPupupHeight()
+	p.calcPupupWidth()
+}
+
 func (p *PopupmenuStruct) Draw() {
 	if !p.active || len(p.items) == 0 {
 		return
@@ -121,8 +128,18 @@ func (p *PopupmenuStruct) Draw() {
 	p.calcStartIndex()
 
 	progress, ch := p.sliderPosAndRune()
+	rowOffset := 0
+	if p.columnTitle != "" {
+		screen.Get().DrawLabel(
+			screen.Rect{X: p.popupRect.X, Y: p.popupRect.Y, Width: p.popupRect.Width - 1, Height: 1},
+			&screen.LabelParams{Style: theme.ColorPopupmenuForeground, Align: screen.AlignLeft, Ellipsis: '…'},
+			" "+p.columnTitle,
+		)
+		screen.Get().SetContent(p.popupRect.X+p.popupRect.Width-1, p.popupRect.Y, ' ', nil, theme.ColorPopupmenuForeground)
+		rowOffset = 1
+	}
 
-	for row := 0; row < p.popupRect.Height; row++ {
+	for row := 0; row < p.contentHeight(); row++ {
 		i := p.startIndex + row
 		if i >= len(p.items) {
 			break
@@ -136,7 +153,7 @@ func (p *PopupmenuStruct) Draw() {
 		screen.Get().DrawLabel(
 			screen.Rect{
 				X:      p.popupRect.X,
-				Y:      p.popupRect.Y + row,
+				Y:      p.popupRect.Y + rowOffset + row,
 				Width:  p.popupRect.Width - 1,
 				Height: 1,
 			},
@@ -152,7 +169,7 @@ func (p *PopupmenuStruct) Draw() {
 		if row == progress {
 			r = ch
 		}
-		screen.Get().SetContent(p.popupRect.X+p.popupRect.Width-1, p.popupRect.Y+row, r, nil, theme.ColorPopupmenuForeground)
+		screen.Get().SetContent(p.popupRect.X+p.popupRect.Width-1, p.popupRect.Y+rowOffset+row, r, nil, theme.ColorPopupmenuForeground)
 	}
 }
 
@@ -226,9 +243,19 @@ func (p *PopupmenuStruct) CursorEnd() {
 // ------------------------
 
 func (p *PopupmenuStruct) calcPupupHeight() {
-	height := p.overlayRect.Height
-	if len(p.items) < height {
-		height = len(p.items)
+	itemHeight := p.overlayRect.Height
+	if p.columnTitle != "" {
+		itemHeight--
+	}
+	if itemHeight < 0 {
+		itemHeight = 0
+	}
+	if len(p.items) < itemHeight {
+		itemHeight = len(p.items)
+	}
+	height := itemHeight
+	if p.columnTitle != "" && p.overlayRect.Height > 0 {
+		height++
 	}
 
 	// in case of interaction minibuffer
@@ -238,6 +265,11 @@ func (p *PopupmenuStruct) calcPupupHeight() {
 
 func (p *PopupmenuStruct) calcPupupWidth() {
 	itemMaxWidth := MIN_WIDTH
+	if p.columnTitle != "" {
+		if w := utils.WidthOnScreen([]byte(p.columnTitle)) + 2; w > itemMaxWidth {
+			itemMaxWidth = w
+		}
+	}
 	for _, item := range p.items {
 		w := utils.WidthOnScreen([]byte(item)) + 2 // +2: 多分 drawlabel がおかしい?
 		if w > itemMaxWidth {
@@ -252,16 +284,21 @@ func (p *PopupmenuStruct) calcPupupWidth() {
 }
 
 func (p *PopupmenuStruct) calcStartIndex() {
-	threshold := utils.Threshold(CURSOR_THRESHOLD, p.popupRect.Height)
+	height := p.contentHeight()
+	if height == 0 {
+		p.startIndex = 0
+		return
+	}
+	threshold := utils.Threshold(CURSOR_THRESHOLD, height)
 
 	if p.itemIndex <= p.startIndex+threshold {
 		p.startIndex = p.itemIndex - threshold
 	}
-	if p.itemIndex >= p.startIndex+p.popupRect.Height-threshold {
-		p.startIndex = p.itemIndex + threshold - p.popupRect.Height + 1
+	if p.itemIndex >= p.startIndex+height-threshold {
+		p.startIndex = p.itemIndex + threshold - height + 1
 	}
 
-	max := len(p.items) - p.popupRect.Height
+	max := len(p.items) - height
 	if p.startIndex > max {
 		p.startIndex = max
 	}
@@ -271,6 +308,42 @@ func (p *PopupmenuStruct) calcStartIndex() {
 	}
 }
 
+func (p *PopupmenuStruct) contentHeight() int {
+	height := p.popupRect.Height
+	if p.columnTitle != "" {
+		height--
+	}
+	if height < 0 {
+		return 0
+	}
+	return height
+}
+
+func (p *PopupmenuStruct) sliderPosAndRune() (int, rune) {
+	height := p.contentHeight()
+	if len(p.items) <= 1 || height <= 0 {
+		return 0, ' '
+	}
+
+	// Position the thumb from the selected item rather than the scroll offset,
+	// so it moves from the first item and reaches the bottom at the last item.
+	steps := height*2 - 1
+	indexRange := len(p.items) - 1
+	progress := (p.itemIndex*steps + indexRange - 1) / indexRange
+	if p.itemIndex >= len(p.items)-1 {
+		return height - 1, '▄'
+	}
+	if progress >= steps {
+		progress = steps - 1
+	}
+
+	if progress&1 == 0 {
+		return progress / 2, '▀'
+	}
+	return progress / 2, '▄'
+}
+
+/*
 func (p *PopupmenuStruct) sliderPosAndRune() (int, rune) {
 	max := len(p.items) - p.popupRect.Height
 	if max <= 0 {
@@ -287,3 +360,4 @@ func (p *PopupmenuStruct) sliderPosAndRune() (int, rune) {
 	}
 	return progress / 2, '▄'
 }
+*/
