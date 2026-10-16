@@ -23,6 +23,9 @@ import (
 type Workspace struct {
 	Name        string
 	Directories []string
+	// FilePath is the source .ge-workspace file, if this workspace was loaded
+	// from or saved to a workspace file.
+	FilePath string
 
 	// RootTrees are references only. The owner is tree.RootTrees.
 	RootTrees []*tree.RootTreeStruct

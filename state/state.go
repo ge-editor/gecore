@@ -1,4 +1,4 @@
-package gecore
+package state
 
 import (
 	"encoding/json"
@@ -101,7 +101,7 @@ func StateSave() error {
 //
 
 func stateFilePath() (string, error) {
-	dir, err := stateDir()
+	dir, err := StateDir()
 	if err != nil {
 		return "", err
 	}
@@ -112,7 +112,7 @@ func stateFilePath() (string, error) {
 // ~/.config/ge/config.json		# ユーザー設定
 // ~/.local/state/ge/state.json	# cursor, history
 // ~/.cache/ge/					# 一時cache
-func stateDir() (string, error) {
+func StateDir() (string, error) {
 	switch runtime.GOOS {
 
 	case "linux":

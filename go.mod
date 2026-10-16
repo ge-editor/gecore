@@ -9,6 +9,7 @@ require (
 	github.com/ge-editor/keychord v0.1.8
 	github.com/ge-editor/theme v0.1.14
 	github.com/ge-editor/utils v0.1.8
+	github.com/google/uuid v1.6.0
 )
 
 require (

@@ -1,87 +1,312 @@
-/*
-Mark C-space
-
-Mark C-space は leaf の種類を意識せず、すべての leaf の Mark を
-共通の interface として管理・参照する。
-
-各 leaf は、それぞれの用途に応じた Mark を持つことができる。
-
-editorleaf の Mark では、例えば以下の情報を持つ。
-
-  - edit_buffer
-  - cursor
-  - label
-
-これにより、Mark への移動だけでなく、editor 固有の region 操作なども
-Mark を起点として行える。
-
-他の leaf も、それぞれ必要な情報を持った独自の Mark を実装できる。
-
-Mark は leaf をまたいで利用できる。
-
-  - どの leaf からでも Mark を登録できる
-  - どの leaf からでも Mark を削除できる
-  - どの leaf からでも、別の leaf の Mark へ移動できる
-
-C-space は個々の leaf の実装詳細を持たず、共通の Mark interface
-だけを扱う。
-
-Mark の状態変更は、主に各 leaf 側で行う。
-
-例えば editorleaf では、カーソル位置を調整した際に Mark の位置や
-label を変更するなど、leaf 自身が Mark の整合性を維持する。
-
-つまり Mark は leaf 間を自由に移動するための共通の参照点となる。
-*/
-
 package marks
 
-var Marks = NewMarks()
+import (
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
 
-type Mark interface {
-	// Leaf() tree.Leaf
-	// LeafName() string
+	"github.com/ge-editor/gecore/state"
+	"github.com/ge-editor/gelog"
+	"github.com/google/uuid"
+)
 
-	SetLabel(string)
-	GetLabel() string
+var Marks *MarksStruct
+
+func init() {
+	Marks = NewMarks()
+	// 必要に応じて自動保存を有効化
+	Marks.StartAutoSave(5 * time.Second)
 }
 
 // --------------
-// Marks
+// Mark
+// --------------
+
+// Mark はすべての leaf の Mark が実装する共通インターフェース
+type Mark interface {
+	SetID(string)
+	GetID() string
+	GetStoredMark() (StoredMark, error)
+}
+
+// --------------
+// StoredMark
+// --------------
+
+// 永続化用の汎用構造体
+type StoredMark struct {
+	ID                string          `json:"id"`
+	Label             string          `json:"label"`
+	WorkspaceName     string          `json:"workspaceName,omitempty"`
+	RootTreeName      string          `json:"rootTreeName,omitempty"`
+	WorkspaceFilePath string          `json:"workspaceFilePath,omitempty"`
+	ExtraData         json.RawMessage `json:"extraData,omitempty"` // leaf ごとの固有データを保持
+}
+
+// StoredMark also implements Mark so persisted records can remain in memory.
+func (m *StoredMark) SetID(id string)                    { m.ID = id }
+func (m *StoredMark) GetID() string                      { return m.ID }
+func (m *StoredMark) GetStoredMark() (StoredMark, error) { return *m, nil }
+
+// --------------
+// MarksStruct
 // --------------
 
 func NewMarks() *MarksStruct {
-	return &MarksStruct{
+	m := &MarksStruct{
 		marks: make([]Mark, 0),
 	}
+	storedMarks, err := marksLoad()
+	if err != nil {
+		gelog.Error(err.Error())
+		return m
+	}
+
+	for i := range storedMarks {
+		m.marks = append(m.marks, &storedMarks[i])
+	}
+
+	return m
 }
 
 type MarksStruct struct {
-	marks []Mark
+	mu sync.RWMutex
+
+	marks   []Mark // marks.json に保存するのはこれだけ
+	deleted []string
+
+	dirty bool
+	stop  chan struct{}
+	done  chan struct{}
+}
+
+func (m *MarksStruct) StartAutoSave(interval time.Duration) {
+	m.stop = make(chan struct{})
+	m.done = make(chan struct{})
+
+	go func() {
+		defer close(m.done)
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				_ = m.saveIfDirty()
+
+			case <-m.stop:
+				_ = m.saveIfDirty()
+				return
+			}
+		}
+	}()
+}
+
+func (m *MarksStruct) StopAutoSave() {
+	close(m.stop)
+	<-m.done
 }
 
 func (m *MarksStruct) Remove(target Mark) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	for i, v := range m.marks {
-		if v != target {
+		if v.GetID() != target.GetID() {
 			continue
 		}
+
+		m.deleted = append(m.deleted, v.GetID())
 
 		copy(m.marks[i:], m.marks[i+1:])
 		m.marks[len(m.marks)-1] = nil
 		m.marks = m.marks[:len(m.marks)-1]
+
+		m.dirty = true
 		return true
 	}
 
 	return false
 }
 
+// Mark に UUID を設定した後、Marks に追加する
 func (m *MarksStruct) Add(newMark Mark) Mark {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if newMark.GetID() == "" {
+		newMark.SetID(uuid.NewString())
+	}
+
+	// 送り返す
+	if updater, ok := newMark.(interface{ UpdateExtraData() }); ok {
+		updater.UpdateExtraData()
+	}
+
 	m.marks = append([]Mark{newMark}, m.marks...)
+	m.dirty = true
+
 	return newMark
 }
 
 func (m *MarksStruct) Items() []Mark {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	result := make([]Mark, len(m.marks))
 	copy(result, m.marks)
 	return result
+}
+
+// ----------------
+
+func tmpFilePath() (string, error) {
+	dir, err := state.StateDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, "marks.tmp"), nil
+}
+
+// ~/.local/state/ge/marks.json (linux)
+func marksFilePath() (string, error) {
+	dir, err := state.StateDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, "marks.json"), nil
+}
+
+// ファイルから読み込む際は StoredMark のスライスとしてデシリアライズする
+func marksLoad() ([]StoredMark, error) {
+	path, err := marksFilePath()
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []StoredMark{}, nil
+		}
+		return []StoredMark{}, err
+	}
+
+	var s []StoredMark
+	if err := json.Unmarshal(b, &s); err != nil {
+		return []StoredMark{}, err
+	}
+
+	return s, nil
+}
+
+// Save is []StoredMark
+func (m *MarksStruct) saveIfDirty() error {
+	gelog.Debug("saveIfDirty", "dirty", m.dirty)
+	m.mu.Lock()
+	if !m.dirty {
+		m.mu.Unlock()
+		return nil
+	}
+	// ロックを一時的に解除して読み込み・保存処理を行う
+	m.mu.Unlock()
+
+	storedMarks, err := marksLoad()
+	if err != nil {
+		gelog.Error(err.Error())
+	}
+
+	tmp, err := tmpFilePath()
+	if err != nil {
+		gelog.Error(err.Error())
+		return err
+	}
+
+	path, err := marksFilePath()
+	if err != nil {
+		gelog.Error(err.Error())
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		gelog.Error(err.Error())
+		return err
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	deletedMap := make(map[string]bool)
+	for _, id := range m.deleted {
+		deletedMap[id] = true
+	}
+
+	currentMap := make(map[string]Mark)
+	for _, mk := range m.marks {
+		currentMap[mk.GetID()] = mk
+	}
+
+	var savedMarks []StoredMark
+
+	// 1. 既存ファイルにあったもので、削除されておらず、かつメモリ側で保持されているものを統合
+	for _, mk := range storedMarks {
+		if deletedMap[mk.ID] {
+			continue
+		}
+		if updated, exists := currentMap[mk.ID]; exists {
+			stored, err := updated.GetStoredMark()
+			if err != nil {
+				return err
+			}
+			savedMarks = append(savedMarks, stored)
+			delete(currentMap, mk.ID)
+		} else {
+			savedMarks = append(savedMarks, mk)
+		}
+	}
+
+	// 2. メモリ側に新規追加されたものを追加
+	for _, mk := range m.marks {
+		newStored, err := mk.GetStoredMark()
+		if err != nil {
+			return err
+		}
+		id := newStored.ID
+
+		// currentMap に残っている（＝ファイル側にまだ存在しない新規追加分）ものを処理
+		if _, exists := currentMap[id]; exists {
+			savedMarks = append([]StoredMark{newStored}, savedMarks...)
+			delete(currentMap, id)
+		}
+	}
+
+	b, err := json.MarshalIndent(savedMarks, "", "  ")
+	if err != nil {
+		gelog.Error(err.Error())
+		return err
+	}
+
+	err = os.WriteFile(tmp, b, 0o644)
+	if err != nil {
+		gelog.Error(err.Error())
+		return err
+	}
+
+	err = os.Rename(tmp, path)
+	if err != nil {
+		gelog.Error(err.Error())
+		return err
+	}
+
+	// 保存成功後にフラグをクリア
+	m.dirty = false
+	m.deleted = nil
+
+	return nil
 }
