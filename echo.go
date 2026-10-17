@@ -3,7 +3,6 @@ package gecore
 
 import (
 	"context"
-	"strings"
 
 	"github.com/gdamore/tcell/v3"
 
@@ -26,34 +25,47 @@ const (
 
 // Required implement Overlay interface
 type EchoStruct struct {
-	textArray   []string
+	textArray   []echoText
 	overlayRect screen.Rect
 	style       tcell.Style
 	height      int
 	chain       *chainStruct
 }
 
+type echoText struct {
+	text  string
+	style activeFlag
+}
+
 func NewEcho() *EchoStruct {
-	return &EchoStruct{
-		textArray: []string{},
+	e := &EchoStruct{
+		textArray: []echoText{},
 		style:     theme.ColorEchoLine,
 		height:    1,
-		chain:     &chainStruct{},
 	}
+	e.chain = &chainStruct{echo: e}
+	return e
 }
 
 type chainStruct struct {
-	isShowCursor  bool
-	justNowActive activeFlag
+	// isShowCursor  bool
+	echo       *EchoStruct
+	styleStart int
+	styleEnd   int
 }
 
-func (c *chainStruct) ShowCursor(b bool) *chainStruct {
+/* func (c *chainStruct) ShowCursor(b bool) *chainStruct {
 	c.isShowCursor = b
 	return c
 }
+*/
 
-func (c *chainStruct) JustNowActive(f activeFlag) *chainStruct {
-	c.justNowActive = f
+func (c *chainStruct) WithStyle(f activeFlag) *chainStruct {
+	if c.echo != nil {
+		for i := c.styleStart; i < c.styleEnd && i < len(c.echo.textArray); i++ {
+			c.echo.textArray[i].style = f
+		}
+	}
 	return c
 }
 
@@ -65,7 +77,7 @@ func (e *EchoStruct) RequiredHeight() int {
 // Overlay interface
 func (e *EchoStruct) IsActive() bool {
 	// The minibuffer and echo line are mutually exclusive and are never displayed simultaneously.
-	// return e.chain.justNowActive != EchoNormal
+	// return len(e.textArray) > 0
 
 	// Always displayed
 	return true
@@ -83,26 +95,52 @@ func (e *EchoStruct) Draw(ctx context.Context) bool {
 		screen.SetContent(x, e.overlayRect.Y, ' ', nil, e.style)
 	}
 
-	s := strings.Join(e.textArray, ", ")
-	screen.DrawString(0, e.overlayRect.Y, e.overlayRect.Width, s, e.style)
+	x := 0
+	for i, item := range e.textArray {
+		if i > 0 {
+			if x+2 > e.overlayRect.Width {
+				break
+			}
+			screen.DrawString(x, e.overlayRect.Y, 2, ", ", theme.ColorEchoLine)
+			x += 2
+		}
 
-	if e.chain.isShowCursor {
-		w := utils.WidthOnScreen([]byte(s))
-		screen.ShowCursor(w, e.overlayRect.Y+e.overlayRect.Height-1)
-		e.chain.isShowCursor = false
+		style := e.styleFor(item.style)
+		width := utils.WidthOnScreen([]byte(item.text))
+		if remaining := e.overlayRect.Width - x; width > remaining {
+			width = remaining
+		}
+		if width <= 0 {
+			break
+		}
+		screen.DrawString(x, e.overlayRect.Y, width, item.text, style)
+		x += width
+		if x >= e.overlayRect.Width {
+			break
+		}
 	}
+
+	/*
+		if e.chain.isShowCursor {
+			w := utils.WidthOnScreen([]byte(s))
+			screen.ShowCursor(w, e.overlayRect.Y+e.overlayRect.Height-1)
+			e.chain.isShowCursor = false
+		}
+	*/
 
 	// Clear text
 	e.textArray = e.textArray[:0]
-	e.chain.justNowActive = EchoNormal
+	e.chain.styleStart = 0
+	e.chain.styleEnd = 0
 
 	return false
 }
 
 func (e *EchoStruct) Clear() {
 	e.textArray = e.textArray[:0]
-	e.chain.justNowActive = EchoNormal
-	e.chain.isShowCursor = false
+	e.chain.styleStart = 0
+	e.chain.styleEnd = 0
+	// e.chain.isShowCursor = false
 }
 
 func (e *EchoStruct) UniversalCancel() {}
@@ -111,21 +149,42 @@ func (e *EchoStruct) UniversalCancel() {}
 
 func (e *EchoStruct) SetText(s string) *chainStruct {
 	e.textArray = e.textArray[:0]
+	e.chain.styleStart = 0
+	e.chain.styleEnd = 0
 	if s != "" {
-		e.textArray = append(e.textArray, s)
+		e.textArray = append(e.textArray, echoText{text: s})
+		e.chain.styleEnd = len(e.textArray)
 	}
 	return e.chain
 }
 
 func (e *EchoStruct) AddText(s ...string) *chainStruct {
+	e.chain.styleStart = len(e.textArray)
+	e.chain.styleEnd = e.chain.styleStart
 	for _, str := range s {
 		if str == "" {
 			continue
 		}
 
-		if len(e.textArray) == 0 || e.textArray[len(e.textArray)-1] != str {
-			e.textArray = append(e.textArray, str)
+		if len(e.textArray) == 0 || e.textArray[len(e.textArray)-1].text != str {
+			e.textArray = append(e.textArray, echoText{text: str})
+			e.chain.styleEnd = len(e.textArray)
 		}
 	}
 	return e.chain
+}
+
+func (e *EchoStruct) styleFor(flag activeFlag) tcell.Style {
+	switch flag {
+	case EchoBlue:
+		return theme.ColorEchoBlue
+	case EchoGreen:
+		return theme.ColorEchoGreen
+	case EchoYellow:
+		return theme.ColorEchoYellow
+	case EchoRed:
+		return theme.ColorEchoRed
+	default:
+		return e.style
+	}
 }
