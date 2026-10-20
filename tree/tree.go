@@ -664,6 +664,12 @@ func (tr *Tree) DeleteWindow() {
 		return
 	}
 
+	// The leaf being removed must release what it registered elsewhere
+	// (e.g. Editorleaf unsubscribes from its buffer's syntax Worker).
+	if l := GetActiveTree().GetLeaf(); l != nil {
+		l.WillClose()
+	}
+
 	sib2 := GetActiveTree().Sibling()
 	var sib Tree = *sib2
 	GetActiveTree().parent.left = sib.left
@@ -732,6 +738,10 @@ func (tr *Tree) DeleteOtherWindows() {
 
 // 破棄対象の leaf に後始末が必要な場合のみ実装する
 func closeLeaf(l Leaf) {
+	if l == nil {
+		return
+	}
+	l.WillClose()
 	if c, ok := l.(interface{ Close() }); ok {
 		c.Close()
 	}

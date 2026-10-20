@@ -13,34 +13,22 @@ import (
 
 var Echo *EchoStruct = NewEcho()
 
-type activeFlag int
-
-const (
-	EchoNormal activeFlag = iota
-	EchoBlue
-	EchoGreen
-	EchoYellow
-	EchoRed
-)
-
 // Required implement Overlay interface
 type EchoStruct struct {
 	textArray   []echoText
 	overlayRect screen.Rect
-	style       tcell.Style
 	height      int
 	chain       *chainStruct
 }
 
 type echoText struct {
 	text  string
-	style activeFlag
+	style *tcell.Style
 }
 
 func NewEcho() *EchoStruct {
 	e := &EchoStruct{
 		textArray: []echoText{},
-		style:     theme.ColorEchoLine,
 		height:    1,
 	}
 	e.chain = &chainStruct{echo: e}
@@ -60,10 +48,10 @@ type chainStruct struct {
 }
 */
 
-func (c *chainStruct) WithStyle(f activeFlag) *chainStruct {
+func (c *chainStruct) WithStyle(f tcell.Style) *chainStruct {
 	if c.echo != nil {
 		for i := c.styleStart; i < c.styleEnd && i < len(c.echo.textArray); i++ {
-			c.echo.textArray[i].style = f
+			c.echo.textArray[i].style = &f
 		}
 	}
 	return c
@@ -92,7 +80,7 @@ func (e *EchoStruct) Draw(ctx context.Context) bool {
 	screen := screen.Get()
 
 	for x := 0; x < e.overlayRect.Width; x++ {
-		screen.SetContent(x, e.overlayRect.Y, ' ', nil, e.style)
+		screen.SetContent(x, e.overlayRect.Y, ' ', nil, theme.ColorEchoLine)
 	}
 
 	x := 0
@@ -113,7 +101,7 @@ func (e *EchoStruct) Draw(ctx context.Context) bool {
 		if width <= 0 {
 			break
 		}
-		screen.DrawString(x, e.overlayRect.Y, width, item.text, style)
+		screen.DrawString(x, e.overlayRect.Y, width, item.text, *style)
 		x += width
 		if x >= e.overlayRect.Width {
 			break
@@ -174,17 +162,9 @@ func (e *EchoStruct) AddText(s ...string) *chainStruct {
 	return e.chain
 }
 
-func (e *EchoStruct) styleFor(flag activeFlag) tcell.Style {
-	switch flag {
-	case EchoBlue:
-		return theme.ColorEchoBlue
-	case EchoGreen:
-		return theme.ColorEchoGreen
-	case EchoYellow:
-		return theme.ColorEchoYellow
-	case EchoRed:
-		return theme.ColorEchoRed
-	default:
-		return e.style
+func (e *EchoStruct) styleFor(style *tcell.Style) *tcell.Style {
+	if style == nil {
+		return &theme.ColorEchoLine
 	}
+	return style
 }
