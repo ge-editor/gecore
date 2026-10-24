@@ -13,6 +13,13 @@ type ExCommand interface {
 	Execute(ctx context.Context, args []string) (handled bool, err error)
 }
 
+// ArgCompleter is implemented by commands that can complete their argument.
+// The ESC x prompt calls CompleteArgs for the text typed after the command
+// name ("language go" -> "go") and shows the result in the popup menu.
+type ArgCompleter interface {
+	CompleteArgs(input string) []string
+}
+
 type CommandProvider interface {
 	Commands() []ExCommand
 }

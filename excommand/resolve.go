@@ -52,6 +52,17 @@ func Execute(commands []ExCommand, ctx context.Context, name string, args []stri
 	return false, nil
 }
 
+// Find returns the first command in an already ordered list (nearest first)
+// whose name or alias equals name, ignoring case. It returns nil if none does.
+func Find(commands []ExCommand, name string) ExCommand {
+	for _, cmd := range commands {
+		if matchesName(cmd, name) {
+			return cmd
+		}
+	}
+	return nil
+}
+
 func matchesName(cmd ExCommand, name string) bool {
 	if cmd == nil {
 		return false
