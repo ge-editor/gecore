@@ -101,25 +101,6 @@ func (m *CancelManagerStruct) CancelTop() bool {
 	return true
 }
 
-/*
-func (m *CancelManagerStruct) CancelAll_1() {
-	// Priority 昇順でソート（小さいものから順に Cancel）
-	sort.SliceStable(m.list, func(i, j int) bool {
-		return m.list[i].Priority() < m.list[j].Priority()
-	})
-
-	for _, it := range m.list {
-		if it != nil && it.IsActive() {
-			it.Cancel()
-			// Priority で残すかどうか判定する方法も考えられる
-		}
-	}
-
-	// シングルトンがあるので削除してはいけない
-	// m.list = m.list[:0]
-}
-*/
-
 func (m *CancelManagerStruct) CancelAll() {
 	// Priority 昇順でソート（小さいものから順に Cancel）
 	sort.SliceStable(m.list, func(i, j int) bool {
@@ -142,15 +123,3 @@ func (m *CancelManagerStruct) CancelAll() {
 	// シングルトンがあるので削除してはいけない
 	// m.list = m.list[:0]
 }
-
-/*
-func HandleEvent(ev tcell.EventKey, km *keychord.RootNode) {
-	if ev.Key() == tcell.KeyCtrlG {
-		if input.Cancel().CancelTop() {
-			return
-		}
-	}
-
-	km.Dispatch(ev)
-}
-*/

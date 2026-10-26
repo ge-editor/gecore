@@ -208,7 +208,6 @@ func marksLoad() ([]StoredMark, error) {
 
 // Save is []StoredMark
 func (m *MarksStruct) saveIfDirty() error {
-	gelog.Debug("saveIfDirty", "dirty", m.dirty)
 	m.mu.Lock()
 	if !m.dirty {
 		m.mu.Unlock()

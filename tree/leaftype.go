@@ -2,7 +2,7 @@ package tree
 
 import "github.com/ge-editor/gecore"
 
-var ActiveLeaf Leaf
+// var ActiveLeaf Leaf
 
 type LeafContext struct {
 	CancelManager *gecore.EventCancelManager

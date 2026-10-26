@@ -73,10 +73,16 @@ func InitQuitGuardManager(quit chan struct{}) {
 }
 
 func (q *QuitGuardManagerStruct) Reset(result GuardEventStatus) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
 	q.waitResolvedIndex = 0
 }
 
 func (q *QuitGuardManagerStruct) CurrentQuitGuardResolver() QuitGuardResolver {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
 	if q.waitResolvedIndex >= len(q.waitResolved) {
 		gelog.Info("CurrentCloseGuard", "nil")
 		return nil
@@ -84,18 +90,25 @@ func (q *QuitGuardManagerStruct) CurrentQuitGuardResolver() QuitGuardResolver {
 	return q.waitResolved[q.waitResolvedIndex]
 }
 
+// HandleNextResolver advances to the next resolver, or exits the app when
+// none is left.
+//
+// mu is released before ExitApp and WillEnter are called: sync.Mutex is not
+// reentrant, so a resolver whose WillEnter calls back into the manager
+// (Register, Unregister, CurrentQuitGuardResolver, ...) would deadlock.
 func (q *QuitGuardManagerStruct) HandleNextResolver() {
 	q.mu.Lock()
-	defer q.mu.Unlock()
-
 	q.waitResolvedIndex++
 
 	if q.waitResolvedIndex >= len(q.waitResolved) {
+		q.mu.Unlock()
 		q.ExitApp()
 		return
 	}
 
 	next := q.waitResolved[q.waitResolvedIndex]
+	q.mu.Unlock()
+
 	next.WillEnter()
 }
 
@@ -140,7 +153,11 @@ func (q *QuitGuardManagerStruct) Unregister(c QuitGuardResolver) {
 	q.waitResolvedSignal = remove(q.waitResolvedSignal)
 }
 
+// ExitApp closes quitApp exactly once. The caller must not hold mu.
 func (q *QuitGuardManagerStruct) ExitApp() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
 	select {
 	case <-q.quitApp:
 		return

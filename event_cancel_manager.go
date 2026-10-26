@@ -52,7 +52,7 @@ func (m *EventCancelManager) Rotate(key string) context.Context {
 	return ctx
 }
 
-func (m *EventCancelManager) Cancel(key string) context.Context {
+/* func (m *EventCancelManager) Cancel(key string) context.Context {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -65,9 +65,9 @@ func (m *EventCancelManager) Cancel(key string) context.Context {
 	m.cancel[key] = cancel
 
 	return ctx
-}
+} */
 
-func (m *EventCancelManager) IsCanceled(ctx context.Context, key string) bool {
+/* func (m *EventCancelManager) IsCanceled(ctx context.Context, key string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -89,9 +89,9 @@ func (m *EventCancelManager) IsCanceled(ctx context.Context, key string) bool {
 	}
 
 	return false
-}
+} */
 
-func (m *EventCancelManager) CancelAll() {
+/* func (m *EventCancelManager) CancelAll() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -100,4 +100,4 @@ func (m *EventCancelManager) CancelAll() {
 		delete(m.cancel, key)
 		delete(m.ctxMap, key)
 	}
-}
+} */
