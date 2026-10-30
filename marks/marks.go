@@ -40,6 +40,7 @@ type Mark interface {
 type StoredMark struct {
 	ID                string          `json:"id"`
 	Label             string          `json:"label"`
+	WorkspaceID       string          `json:"workspaceId,omitempty"` // Workspace.ID (UUID)
 	WorkspaceName     string          `json:"workspaceName,omitempty"`
 	RootTreeName      string          `json:"rootTreeName,omitempty"`
 	WorkspaceFilePath string          `json:"workspaceFilePath,omitempty"`
@@ -50,6 +51,20 @@ type StoredMark struct {
 func (m *StoredMark) SetID(id string)                    { m.ID = id }
 func (m *StoredMark) GetID() string                      { return m.ID }
 func (m *StoredMark) GetStoredMark() (StoredMark, error) { return *m, nil }
+
+// WorkspaceRef is implemented by marks that refer to a workspace. Marks.
+// UpdateWorkspaceFilePath uses it to keep WorkspaceFilePath up to date.
+type WorkspaceRef interface {
+	GetWorkspaceID() string
+	SetWorkspaceID(string)
+	GetWorkspaceFilePath() string
+	SetWorkspaceFilePath(string)
+}
+
+func (m *StoredMark) GetWorkspaceID() string          { return m.WorkspaceID }
+func (m *StoredMark) SetWorkspaceID(id string)        { m.WorkspaceID = id }
+func (m *StoredMark) GetWorkspaceFilePath() string    { return m.WorkspaceFilePath }
+func (m *StoredMark) SetWorkspaceFilePath(p string)   { m.WorkspaceFilePath = p }
 
 // --------------
 // MarksStruct
@@ -151,6 +166,45 @@ func (m *MarksStruct) Add(newMark Mark) Mark {
 	m.dirty = true
 
 	return newMark
+}
+
+// UpdateWorkspaceFilePath sets WorkspaceFilePath to path in every mark of the
+// workspace with this ID, and returns how many marks changed. Marks saved
+// before IDs existed (no WorkspaceID) whose WorkspaceFilePath is path adopt
+// the ID.
+func (m *MarksStruct) UpdateWorkspaceFilePath(id, path string) int {
+	if id == "" || path == "" {
+		return 0
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	changed := 0
+	for _, mk := range m.marks {
+		ref, ok := mk.(WorkspaceRef)
+		if !ok {
+			continue
+		}
+		adopted := false
+		switch cur := ref.GetWorkspaceID(); {
+		case cur == id:
+		case cur == "" && ref.GetWorkspaceFilePath() != "" &&
+			filepath.Clean(ref.GetWorkspaceFilePath()) == filepath.Clean(path):
+			ref.SetWorkspaceID(id)
+			adopted = true
+		default:
+			continue
+		}
+		if ref.GetWorkspaceFilePath() != path {
+			ref.SetWorkspaceFilePath(path)
+			adopted = true
+		}
+		if adopted {
+			changed++
+			m.dirty = true
+		}
+	}
+	return changed
 }
 
 func (m *MarksStruct) Items() []Mark {

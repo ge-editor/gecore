@@ -6,6 +6,11 @@ import (
 	"github.com/ge-editor/keychord"
 )
 
+// OverMinibuffer を実装したモードは、minibuffer が active でもキーを先に受け取る。
+type InputOverMinibuffer interface {
+	OverMinibuffer() bool
+}
+
 // Mode は「キー定義＋描画＋ライフサイクル」を持つ編集モード
 //
 // - Name()        : UI 表示用のモード名

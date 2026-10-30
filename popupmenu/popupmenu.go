@@ -68,6 +68,18 @@ func NewPopupmenu() *PopupmenuStruct {
 	}
 }
 
+// IsVisible reports whether the popupmenu is actually drawn.
+// It uses the same condition as Draw: active and has at least one item.
+func (p *PopupmenuStruct) IsVisible() bool {
+	return p.active && len(p.items) > 0
+}
+
+/*
+	 func (p *PopupmenuStruct) IsVisible() bool {
+		return p.active && len(p.items) > 0
+	}
+*/
+
 func (p *PopupmenuStruct) Active(b bool) {
 	p.active = b
 }

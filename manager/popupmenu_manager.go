@@ -4,6 +4,7 @@ package manager
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/gdamore/tcell/v3"
 
@@ -20,6 +21,20 @@ import (
 	return popupmenuManager
 }
 */
+
+// currentManager is the manager whose popupmenu currently receives the
+// popupmenu navigation keys (see ge/popupmenu_layer.go).
+// Start sets it and Close clears it.
+var currentManager atomic.Pointer[PopupmenuManagerStruct]
+
+// CurrentPopupmenu returns the popupmenu of the started and not yet closed
+// manager, or nil when there is none.
+func CurrentPopupmenu() *popupmenu.PopupmenuStruct {
+	if m := currentManager.Load(); m != nil {
+		return m.Popupmenu()
+	}
+	return nil
+}
 
 func NewPopupmenuManager() *PopupmenuManagerStruct {
 	return &PopupmenuManagerStruct{}
@@ -43,6 +58,7 @@ func (pm *PopupmenuManagerStruct) Popupmenu() *popupmenu.PopupmenuStruct {
 func (pm *PopupmenuManagerStruct) Start(session *popupmenu.Session) {
 	pm.session = session
 	pm.active = true
+	currentManager.Store(pm)
 	// pm.dispatchActive = true
 
 	overlay.OverlayManager().Add(pm)
@@ -53,12 +69,13 @@ func (pm *PopupmenuManagerStruct) Start(session *popupmenu.Session) {
 }
 
 func (pm *PopupmenuManagerStruct) Close() {
-	if !pm.active {
+	/* if !pm.active {
 		return
-	}
+	} */
 
 	pm.session = nil
 	pm.active = false
+	currentManager.CompareAndSwap(pm, nil)
 	//pm.dispatchActive = false
 
 	overlay.OverlayManager().Remove(pm)

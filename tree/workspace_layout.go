@@ -14,12 +14,16 @@ type WorkspaceLeafData interface {
 
 // LayoutNode is the JSON representation of a split tree and its leaves.
 type LayoutNode struct {
-	Type      string          `json:"type"`
-	Direction string          `json:"direction,omitempty"`
-	Ratio     float32         `json:"ratio,omitempty"`
-	Children  []*LayoutNode   `json:"children,omitempty"`
-	LeafType  string          `json:"leafType,omitempty"`
-	Data      json.RawMessage `json:"data,omitempty"`
+	Type      string  `json:"type"`
+	Direction string  `json:"direction,omitempty"`
+	Ratio     float32 `json:"ratio,omitempty"`
+	// SplitSaved is true while the split is maximized (Tree.splitSaved).
+	// Ratio is then the maximized ratio and SavedRatio the one to restore.
+	SplitSaved bool            `json:"splitSaved,omitempty"`
+	SavedRatio float32         `json:"savedRatio,omitempty"`
+	Children   []*LayoutNode   `json:"children,omitempty"`
+	LeafType   string          `json:"leafType,omitempty"`
+	Data       json.RawMessage `json:"data,omitempty"`
 }
 
 // MarshalLayout exports a tree's layout and optional per-leaf data.
@@ -29,6 +33,9 @@ func (tr *Tree) MarshalLayout() (*LayoutNode, error) {
 	}
 	if tr.left != nil || tr.top != nil {
 		n := &LayoutNode{Type: "split", Ratio: tr.split}
+		if tr.splitSaved {
+			n.SplitSaved, n.SavedRatio = true, tr.savedSplit
+		}
 		if tr.left != nil {
 			n.Direction = "horizontal"
 			left, err := tr.left.MarshalLayout()
@@ -107,6 +114,11 @@ func UnmarshalLayout(n *LayoutNode) (*Tree, error) {
 			return nil, err
 		}
 		tr := &Tree{split: n.Ratio}
+		// An invalid saved ratio is dropped: the maximized state is lost
+		// but the layout still loads.
+		if n.SplitSaved && n.SavedRatio > 0 && n.SavedRatio < 1 {
+			tr.splitSaved, tr.savedSplit = true, n.SavedRatio
+		}
 		a.parent, b.parent = tr, tr
 		switch n.Direction {
 		case "horizontal":

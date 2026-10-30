@@ -27,6 +27,9 @@ func NewRedoMode(mm *mode.Manager, key func(*keychord.RootNode, *RedoMode)) *Red
 	return m
 }
 
+// OverMinibuffer を実装したモードは、minibuffer が active でもキーを先に受け取る。
+func (m *RedoMode) OverMinibuffer() bool { return true }
+
 // --- Mode interface ---
 func (m *RedoMode) Name() string             { return "RedoMode" }
 func (m *RedoMode) Keys() *keychord.RootNode { return m.RootNode }
