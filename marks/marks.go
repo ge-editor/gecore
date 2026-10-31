@@ -207,6 +207,37 @@ func (m *MarksStruct) UpdateWorkspaceFilePath(id, path string) int {
 	return changed
 }
 
+// Update lets fn rewrite the list of marks while the lock is held, so the
+// autosave never sees a half-edited mark. fn gets a copy of the list and
+// returns the new list and whether anything changed. Marks that are missing
+// from the new list are recorded as deleted. An entry may be replaced by
+// another Mark with the same ID (e.g. a StoredMark by the editor's mark).
+func (m *MarksStruct) Update(fn func(list []Mark) ([]Mark, bool)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	old := make([]Mark, len(m.marks))
+	copy(old, m.marks)
+
+	list, changed := fn(old)
+	if !changed {
+		return
+	}
+
+	kept := make(map[string]struct{}, len(list))
+	for _, v := range list {
+		kept[v.GetID()] = struct{}{}
+	}
+	for _, v := range m.marks {
+		if _, ok := kept[v.GetID()]; !ok {
+			m.deleted = append(m.deleted, v.GetID())
+		}
+	}
+
+	m.marks = list
+	m.dirty = true
+}
+
 func (m *MarksStruct) Items() []Mark {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
