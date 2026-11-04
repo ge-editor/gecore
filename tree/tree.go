@@ -2,6 +2,8 @@ package tree
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/gelog"
@@ -81,6 +83,8 @@ type Tree struct {
 	// maximize 前の split を保存する (splitSaved が true の間のみ有効)
 	savedSplit float32
 	splitSaved bool
+	// restoreActive is populated from a saved LayoutNode.Active marker.
+	restoreActive bool
 
 	screen.Rect
 
@@ -99,14 +103,45 @@ func (tr *Tree) GetLeaf() Leaf {
 	return tr.leaf
 }
 
-/*
-	 func isActive(t *Tree) Stat {
-		if t == GetActiveTree() {
-			return Active
-		}
-		return Inactive
+// SelectLeaf shows the leaf of the registered type name in this pane.
+//
+// The leaf that was shown is parked in the pane, not destroyed: it is not
+// drawn, but it keeps its state and is still visited by ForEachLeaf (so
+// buffers shared with it stay in sync, the quit guard sees its unsaved
+// changes, and closing the pane closes it). Selecting its type again brings
+// the same instance back. A type that has no parked leaf in this pane is
+// created with its LeafType's NewLeaf.
+func (tr *Tree) SelectLeaf(name string) error {
+	if tr == nil || tr.leaf == nil {
+		return errors.New("tree: not a leaf pane")
 	}
-*/
+	cur := tr.leaf
+	if cur.LeafType() != nil && cur.LeafType().Name() == name {
+		return nil
+	}
+
+	var next Leaf
+	if LeafTypes == nil {
+		return errors.New("tree: leaf types are not initialized")
+	}
+	lt, ok := LeafTypes.GetLeafTypeByReginsterName(name)
+	if !ok {
+		return fmt.Errorf("tree: unknown leaf type %q", name)
+	}
+	next = lt.NewLeaf()
+
+	isActive := tr == GetActiveTree()
+
+	cur.Active(false)
+	tr.leaf = next
+	if isActive {
+		next.Active(true)
+	}
+
+	tr.Resize(tr.Rect)
+	next.Resume()
+	return nil
+}
 
 func (tr *Tree) Draw(ctx context.Context) bool {
 	if tr.left != nil {
@@ -127,16 +162,33 @@ func (tr *Tree) Draw(ctx context.Context) bool {
 func (tr *Tree) UniversalCancel() {
 }
 
-func (tr *Tree) ForEachLeaf(fn func(Leaf)) {
-	if tr.left != nil {
-		tr.left.ForEachLeaf(fn)
-		tr.right.ForEachLeaf(fn)
-	} else if tr.top != nil {
-		tr.top.ForEachLeaf(fn)
-		tr.bottom.ForEachLeaf(fn)
-	} else {
-		fn(tr.leaf)
+/*
+	 func (tr *Tree) ForEachLeaf(fn func(Leaf)) {
+		if tr.left != nil {
+			tr.left.ForEachLeaf(fn)
+			tr.right.ForEachLeaf(fn)
+		} else if tr.top != nil {
+			tr.top.ForEachLeaf(fn)
+			tr.bottom.ForEachLeaf(fn)
+		} else {
+			fn(tr.leaf)
+		}
 	}
+*/
+func (tr *Tree) ForEachLeaf(fn func(Leaf) bool) bool {
+	if tr.left != nil {
+		if !tr.left.ForEachLeaf(fn) {
+			return false
+		}
+		return tr.right.ForEachLeaf(fn)
+	} else if tr.top != nil {
+		if !tr.top.ForEachLeaf(fn) {
+			return false
+		}
+		return tr.bottom.ForEachLeaf(fn)
+	}
+
+	return fn(tr.leaf)
 }
 
 /*
@@ -207,8 +259,8 @@ func (tr *Tree) Resize(rect screen.Rect) {
 
 // Return the Leaf for the new Tree created by split screen
 func (tr *Tree) newLeaf(direction string) Leaf {
-	viewName := tr.GetLeaf().LeafType().Name()              // Get View Name
-	v, ok := LeafTypes.GetLeafTypeByReginsterName(viewName) // Get View by View Name
+	leafName := tr.GetLeaf().LeafType().Name()              // Get View Name
+	v, ok := LeafTypes.GetLeafTypeByReginsterName(leafName) // Get View by View Name
 	if !ok {
 
 	}
@@ -718,10 +770,11 @@ func (tr *Tree) DeleteOtherWindows() {
 	}
 
 	// 他の leaf を破棄する
-	root.ForEachLeaf(func(l Leaf) {
+	root.ForEachLeaf(func(l Leaf) bool {
 		if l != keep {
 			closeLeaf(l)
 		}
+		return true
 	})
 
 	// root を leaf ノードに戻す

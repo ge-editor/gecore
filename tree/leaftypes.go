@@ -39,6 +39,16 @@ type LeafTypesStruct struct {
 	names   map[string]int
 }
 
+// Names returns the registered names, in priority order (the default
+// leaf type first).
+func (vs *LeafTypesStruct) Names() []string {
+	names := make([]string, len(vs.entries))
+	for i, e := range vs.entries {
+		names[i] = e.name
+	}
+	return names
+}
+
 // Register LeafType with priority
 // return false if name already exists
 func (vs *LeafTypesStruct) Register(f LeafTypeFactory, priority int, specifyName ...string) error {

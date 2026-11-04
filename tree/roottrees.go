@@ -59,10 +59,11 @@ func RemoveRootTree(rt *RootTreeStruct) error {
 		return errors.New("tree: cannot remove the current root tree; switch first")
 	}
 	if rt.Root != nil {
-		rt.Root.ForEachLeaf(func(l Leaf) {
+		rt.Root.ForEachLeaf(func(l Leaf) bool {
 			if l != nil {
 				l.WillClose()
 			}
+			return true
 		})
 	}
 	RootTrees = slices.Delete(RootTrees, i, i+1)
@@ -110,10 +111,17 @@ func SwitchRootTree(rt *RootTreeStruct) error {
 // GetRootTree().ForEachLeaf wherever state shared through an EditBuffer
 // (cursor, boundary cache, marks) must be kept in sync.
 // fn must not add or remove RootTrees.
-func ForEachLeafAll(fn func(Leaf)) {
+/* func ForEachLeafAll(fn func(Leaf)) {
 	for _, rt := range RootTrees {
 		if rt.Root != nil {
 			rt.Root.ForEachLeaf(fn)
+		}
+	}
+} */
+func ForEachLeafAll(fn func(Leaf) bool) {
+	for _, rt := range RootTrees {
+		if rt.Root != nil && !rt.Root.ForEachLeaf(fn) {
+			return
 		}
 	}
 }

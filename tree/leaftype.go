@@ -2,8 +2,6 @@ package tree
 
 import "github.com/ge-editor/gecore"
 
-// var ActiveLeaf Leaf
-
 type LeafContext struct {
 	CancelManager *gecore.EventCancelManager
 }
@@ -27,4 +25,6 @@ type LeafType interface {
 
 	SetCtx(*LeafContext)
 	CancelManager() *gecore.EventCancelManager
+
+	Opener(destination, behavior string, flag OpenerFlag, data any, f func(handled bool, err error))
 }

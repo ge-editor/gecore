@@ -23,11 +23,24 @@ type LayoutNode struct {
 	SavedRatio float32         `json:"savedRatio,omitempty"`
 	Children   []*LayoutNode   `json:"children,omitempty"`
 	LeafType   string          `json:"leafType,omitempty"`
+	// Active marks the leaf that was the RootTree's active window
+	// (RootTreeStruct.Active) when the layout was saved.
+	Active bool `json:"active,omitempty"`
 	Data       json.RawMessage `json:"data,omitempty"`
 }
 
 // MarshalLayout exports a tree's layout and optional per-leaf data.
 func (tr *Tree) MarshalLayout() (*LayoutNode, error) {
+	return tr.MarshalLayoutWithActive(nil)
+}
+
+// MarshalLayoutWithActive exports a tree's layout and marks active as the
+// active leaf. active should be a leaf node contained in tr.
+func (tr *Tree) MarshalLayoutWithActive(active *Tree) (*LayoutNode, error) {
+	return tr.marshalLayout(active)
+}
+
+func (tr *Tree) marshalLayout(active *Tree) (*LayoutNode, error) {
 	if tr == nil {
 		return nil, fmt.Errorf("tree: nil layout")
 	}
@@ -38,22 +51,22 @@ func (tr *Tree) MarshalLayout() (*LayoutNode, error) {
 		}
 		if tr.left != nil {
 			n.Direction = "horizontal"
-			left, err := tr.left.MarshalLayout()
+			left, err := tr.left.marshalLayout(active)
 			if err != nil {
 				return nil, err
 			}
-			right, err := tr.right.MarshalLayout()
+			right, err := tr.right.marshalLayout(active)
 			if err != nil {
 				return nil, err
 			}
 			n.Children = []*LayoutNode{left, right}
 		} else {
 			n.Direction = "vertical"
-			top, err := tr.top.MarshalLayout()
+			top, err := tr.top.marshalLayout(active)
 			if err != nil {
 				return nil, err
 			}
-			bottom, err := tr.bottom.MarshalLayout()
+			bottom, err := tr.bottom.marshalLayout(active)
 			if err != nil {
 				return nil, err
 			}
@@ -64,7 +77,7 @@ func (tr *Tree) MarshalLayout() (*LayoutNode, error) {
 	if tr.leaf == nil || tr.leaf.LeafType() == nil {
 		return nil, fmt.Errorf("tree: layout contains leaf without type")
 	}
-	n := &LayoutNode{Type: "leaf", LeafType: tr.leaf.LeafType().Name()}
+	n := &LayoutNode{Type: "leaf", LeafType: tr.leaf.LeafType().Name(), Active: tr == active}
 	if state, ok := tr.leaf.(WorkspaceLeafData); ok {
 		data, err := state.MarshalWorkspaceData()
 		if err != nil {
@@ -75,6 +88,33 @@ func (tr *Tree) MarshalLayout() (*LayoutNode, error) {
 		}
 	}
 	return n, nil
+}
+
+// ActiveLeaf returns the leaf node marked active in a restored layout, or nil
+// when the layout has no active marker (as in older workspace files).
+func (tr *Tree) ActiveLeaf() *Tree {
+	if tr == nil {
+		return nil
+	}
+	if tr.leaf != nil {
+		if tr.restoreActive {
+			return tr
+		}
+		return nil
+	}
+	if tr.left != nil {
+		if leaf := tr.left.ActiveLeaf(); leaf != nil {
+			return leaf
+		}
+		return tr.right.ActiveLeaf()
+	}
+	if tr.top != nil {
+		if leaf := tr.top.ActiveLeaf(); leaf != nil {
+			return leaf
+		}
+		return tr.bottom.ActiveLeaf()
+	}
+	return nil
 }
 
 // UnmarshalLayout constructs a tree from a saved layout using registered leaf types.
@@ -97,7 +137,7 @@ func UnmarshalLayout(n *LayoutNode) (*Tree, error) {
 				return nil, fmt.Errorf("tree: restore %s leaf: %w", n.LeafType, err)
 			}
 		}
-		return &Tree{leaf: leaf}, nil
+		return &Tree{leaf: leaf, restoreActive: n.Active}, nil
 	case "split":
 		if len(n.Children) != 2 {
 			return nil, fmt.Errorf("tree: split requires two children")

@@ -4,13 +4,14 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ge-editor/utils"
 )
 
-// Complete returns command names and aliases matching the current input.
-// Matching is case-insensitive prefix matching. Results are sorted by value
+// Complete returns command names and aliases containing the input characters
+// in order. Matching is case-insensitive. Results are sorted by value
 // so completion order is stable even when global commands come from a map.
 func Complete(commands []ExCommand, input string) []Candidate {
-	needle := strings.ToLower(input)
 	seen := make(map[string]struct{})
 	var candidates []Candidate
 
@@ -28,7 +29,7 @@ func Complete(commands []ExCommand, input string) []Candidate {
 			if _, ok := seen[key]; ok {
 				continue
 			}
-			if !strings.HasPrefix(key, needle) {
+			if !utils.ContainsAllCharacters(value, input) {
 				continue
 			}
 
@@ -37,7 +38,7 @@ func Complete(commands []ExCommand, input string) []Candidate {
 				Value: value,
 				// Description:    cmd.Description(),
 				Command:        cmd,
-				MatchedIndexes: prefixIndexes(value, input),
+				MatchedIndexes: matchingIndexes(value, input),
 				Score:          utf8.RuneCountInString(input),
 			})
 		}
@@ -49,10 +50,20 @@ func Complete(commands []ExCommand, input string) []Candidate {
 	return candidates
 }
 
-func prefixIndexes(value, input string) []int {
-	indexes := make([]int, 0, utf8.RuneCountInString(input))
-	for i := 0; i < utf8.RuneCountInString(input); i++ {
-		indexes = append(indexes, i)
+func matchingIndexes(value, input string) []int {
+	valueRunes := []rune(strings.ToLower(value))
+	inputRunes := []rune(strings.ToLower(input))
+	indexes := make([]int, 0, len(inputRunes))
+	next := 0
+	for _, needle := range inputRunes {
+		for next < len(valueRunes) && valueRunes[next] != needle {
+			next++
+		}
+		if next == len(valueRunes) {
+			return nil
+		}
+		indexes = append(indexes, next)
+		next++
 	}
 	return indexes
 }

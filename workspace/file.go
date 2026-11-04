@@ -66,7 +66,7 @@ func MarshalFile(w *Workspace, filePath string) ([]byte, error) {
 		if rt.Root == nil {
 			return nil, fmt.Errorf("workspace: RootTree %q has no layout", rt.Name)
 		}
-		layout, e := rt.Root.MarshalLayout()
+		layout, e := rt.Root.MarshalLayoutWithActive(rt.Active)
 		if e != nil {
 			return nil, fmt.Errorf("workspace: serialize RootTree %q: %w", rt.Name, e)
 		}
@@ -188,11 +188,14 @@ func LoadFile(path string) (*Workspace, error) {
 		if e != nil {
 			return rollback(fmt.Errorf("workspace: restore RootTree %q: %w", name, e))
 		}
-		rt := &tree.RootTreeStruct{Name: name, Root: root}
+		active := root.ActiveLeaf()
+		if active == nil {
+			active = root.FirstLeaf()
+		}
+		rt := &tree.RootTreeStruct{Name: name, Root: root, Active: active}
 		if e = w.Attach(rt); e != nil {
 			return rollback(e)
 		}
-		rt.Active = root.FirstLeaf()
 	}
 	if len(w.RootTrees) == 0 {
 		if _, err = w.NewRootTree("main", tree.LeafTypes.GetDefaultLeafType()); err != nil {
