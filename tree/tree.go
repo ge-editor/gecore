@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/gelog"
@@ -35,18 +36,40 @@ func SetRootTree(tr *Tree) {
 }
 
 // SetActiveTree sets the active Tree of the current RootTreeStruct.
+//
+// Exactly one leaf of the RootTree ends up with Active(true). Every other
+// leaf is deactivated by walking the tree instead of trusting rt.Active:
+// the split operations (SplitHorizontally, InsertRight, ...) turn the
+// previously active node into a split node (its leaf is moved into a child
+// and tr.leaf becomes nil) before calling this function, so rt.Active.GetLeaf()
+// is already nil there and the old leaf would otherwise stay active. Two
+// active leaves make the cursor (drawn by whichever active leaf is drawn
+// last) disagree with the window that receives keys.
 func SetActiveTree(tr *Tree) {
 	rt := currentRoot.Load()
-	if rt == nil {
+	if rt == nil || tr == nil {
 		return
 	}
-	if rt.Active != nil {
-		if leaf := rt.Active.GetLeaf(); leaf != nil {
-			leaf.Active(false)
+	next := tr.GetLeaf()
+
+	if rt.Active != nil && rt.Active != tr {
+		if l := rt.Active.GetLeaf(); l != nil && l != next {
+			l.Active(false)
 		}
 	}
+	if rt.Root != nil {
+		rt.Root.ForEachLeaf(func(l Leaf) bool {
+			if l != nil && l != next {
+				l.Active(false)
+			}
+			return true
+		})
+	}
+
 	rt.Active = tr
-	tr.GetLeaf().Active(true)
+	if next != nil {
+		next.Active(true)
+	}
 }
 
 func GetActiveTree() *Tree {
@@ -162,19 +185,6 @@ func (tr *Tree) Draw(ctx context.Context) bool {
 func (tr *Tree) UniversalCancel() {
 }
 
-/*
-	 func (tr *Tree) ForEachLeaf(fn func(Leaf)) {
-		if tr.left != nil {
-			tr.left.ForEachLeaf(fn)
-			tr.right.ForEachLeaf(fn)
-		} else if tr.top != nil {
-			tr.top.ForEachLeaf(fn)
-			tr.bottom.ForEachLeaf(fn)
-		} else {
-			fn(tr.leaf)
-		}
-	}
-*/
 func (tr *Tree) ForEachLeaf(fn func(Leaf) bool) bool {
 	if tr.left != nil {
 		if !tr.left.ForEachLeaf(fn) {
@@ -749,10 +759,287 @@ func (tr *Tree) DeleteWindow() {
 	GetRootTree().Resize(screen.Get().RootRect())
 }
 
+// replaceWith makes tr take over the contents of sib (its child).
+// The children of sib are re-parented to tr. Without this their parent
+// would keep pointing at the discarded sib node, and later operations that
+// walk or edit through parent (DeleteWindow, Sibling, SwitchSplitDirection,
+// nextInCycle) would work on a node that is no longer in the tree.
+func (tr *Tree) replaceWith(sib *Tree) {
+	tr.left = sib.left
+	tr.right = sib.right
+	tr.top = sib.top
+	tr.bottom = sib.bottom
+	tr.split = sib.split
+	tr.savedSplit = sib.savedSplit
+	tr.splitSaved = sib.splitSaved
+	tr.leaf = sib.leaf
+
+	if tr.left != nil {
+		tr.left.parent = tr
+		tr.right.parent = tr
+	} else if tr.top != nil {
+		tr.top.parent = tr
+		tr.bottom.parent = tr
+	}
+}
+
+// removeLeaf は target を木から取り除き、sibling を親に昇格させる。
+// root ポインタは維持される。
+func (tr *Tree) removeLeaf(target Leaf) {
+	if tr == nil || tr.leaf != nil {
+		return
+	}
+
+	if tr.left != nil { // 左右分割
+		if tr.left.leaf == target {
+			tr.replaceWith(tr.right) // 左を削除 → 右を昇格
+			return
+		}
+		if tr.right.leaf == target {
+			tr.replaceWith(tr.left) // 右を削除 → 左を昇格
+			return
+		}
+		tr.left.removeLeaf(target)
+		tr.right.removeLeaf(target)
+		return
+	}
+
+	if tr.top != nil { // 上下分割
+		if tr.top.leaf == target {
+			tr.replaceWith(tr.bottom) // 上を削除 → 下を昇格
+			return
+		}
+		if tr.bottom.leaf == target {
+			tr.replaceWith(tr.top) // 下を削除 → 上を昇格
+			return
+		}
+		tr.top.removeLeaf(target)
+		tr.bottom.removeLeaf(target)
+	}
+}
+
+// findTreeForLeaf は指定 leaf を持っている Tree ノードを返す。
+func (tr *Tree) findTreeForLeaf(target Leaf) *Tree {
+	if tr == nil {
+		return nil
+	}
+	if tr.leaf == target {
+		return tr
+	}
+	if tr.left != nil {
+		if t := tr.left.findTreeForLeaf(target); t != nil {
+			return t
+		}
+		return tr.right.findTreeForLeaf(target)
+	}
+	if tr.top != nil {
+		if t := tr.top.findTreeForLeaf(target); t != nil {
+			return t
+		}
+		return tr.bottom.findTreeForLeaf(target)
+	}
+	return nil
+}
+
+// DeleteOtherWindows is delete-other-windows (C-x 1): it closes the leaves
+// other than the active one.
+//
+// targets and excludes are leaf type names (LeafType().Name()). When targets
+// is not empty, only leaves of those types are closed; leaves of the types in
+// excludes are never closed. The leaves that are not closed stay in the
+// layout, so with targets or excludes more than one leaf can remain.
+func (tr *Tree) DeleteOtherWindows(targets, excludes []string) {
+	if !deleteOtherWindows(targets, excludes) {
+		return
+	}
+	GetRootTree().Resize(screen.Get().RootRect())
+}
+
+// deleteOtherWindows does the work of DeleteOtherWindows without the final
+// re-layout (which needs the terminal screen). It reports whether the tree
+// was changed.
+func deleteOtherWindows(targets, excludes []string) bool {
+	active := GetActiveTree()
+	root := GetRootTree()
+	if active == nil || root == nil {
+		return false
+	}
+	// すでに単一なら何もしない
+	if root.leaf != nil {
+		return false
+	}
+
+	keep := active.leaf
+	if keep == nil {
+		return false
+	}
+
+	contains := func(list []string, target string) bool {
+		for _, v := range list {
+			if v == target {
+				return true
+			}
+		}
+		return false
+	}
+
+	// 1. 閉じる対象を先に収集（走査中に木を変えない）
+	var toClose []Leaf
+	root.ForEachLeaf(func(l Leaf) bool {
+		if l == keep {
+			return true
+		}
+		name := ""
+		if lt := l.LeafType(); lt != nil {
+			name = lt.Name()
+		}
+
+		// targets が指定されている場合、含まれていなければ閉じない
+		if len(targets) > 0 && !contains(targets, name) {
+			return true
+		}
+		// excludes に含まれていれば閉じない
+		if len(excludes) > 0 && contains(excludes, name) {
+			return true
+		}
+
+		toClose = append(toClose, l)
+		return true
+	})
+
+	// 2. 収集した leaf を順に削除（リソース解放 + 木の再構成）
+	for _, l := range toClose {
+		cleanupAfterCloseLeaf(l)
+		root.removeLeaf(l)
+	}
+
+	// 3. keep が乗っているノードを探して active にする
+	//    （昇格で元の active ノードが消えている可能性があるため）
+	if at := root.findTreeForLeaf(keep); at != nil {
+		SetActiveTree(at)
+	} else {
+		// 念のため
+		SetActiveTree(root)
+	}
+
+	return true
+}
+
+// 失敗
 // delete-other-windows
 // C-x 1
 // Kill all views but active
-func (tr *Tree) DeleteOtherWindows() {
+// root.leaf.LeafType().Name() == targets
+// root.leaf.LeafType().Name() == excludes
+/* func (tr *Tree) DeleteOtherWindows__(targets, excludes []string) {
+	active := GetActiveTree()
+	root := GetRootTree()
+	if active == nil || root == nil {
+		return
+	}
+	// Do nothing if it is already a single view
+	if root.leaf != nil {
+		return
+	}
+
+	// Save the leaf to keep
+	keep := active.leaf
+	if keep == nil {
+		return
+	}
+
+	// Helper function to check if the slice contains the target string
+	contains := func(list []string, target string) bool {
+		for _, v := range list {
+			if v == target {
+				return true
+			}
+		}
+		return false
+	}
+
+	// 再帰的に不要なリーフを削除し、空になった枝を畳む（縮約する）ヘルパー関数
+	var prune func(t *Tree) bool
+	prune = func(t *Tree) bool {
+		if t == nil {
+			return false
+		}
+
+		// リーフの場合
+		if t.leaf != nil {
+			if t.leaf == keep {
+				return false // 残す
+			}
+
+			name := t.leaf.LeafType().Name()
+
+			// Target check: 指定されたターゲットに含まれない場合は残す（閉じない）
+			if len(targets) > 0 && !contains(targets, name) {
+				return false
+			}
+
+			// Exclude check: 除外リストに含まれている場合は残す（閉じない）
+			if len(excludes) > 0 && contains(excludes, name) {
+				return false
+			}
+
+			// 削除対象のウィンドウを閉じる
+			cleanupAfterCloseLeaf(t.leaf)
+			return true // このリーフが削除され、空になったことを通知
+		}
+
+		// 左右分割の場合
+		if t.left != nil && t.right != nil {
+			leftDeleted := prune(t.left)
+			rightDeleted := prune(t.right)
+
+			if leftDeleted && rightDeleted {
+				t.left = nil
+				t.right = nil
+				return true
+			} else if leftDeleted {
+				*t = *t.right // 左が消えたので右を昇格
+				return false
+			} else if rightDeleted {
+				*t = *t.left // 右が消えたので左を昇格
+				return false
+			}
+			return false
+		}
+
+		// 上下分割の場合
+		if t.top != nil && t.bottom != nil {
+			topDeleted := prune(t.top)
+			bottomDeleted := prune(t.bottom)
+
+			if topDeleted && bottomDeleted {
+				t.top = nil
+				t.bottom = nil
+				return true
+			} else if topDeleted {
+				*t = *t.bottom // 上が消えたので下を昇格
+				return false
+			} else if bottomDeleted {
+				*t = *t.top // 下が消えたので上を昇格
+				return false
+			}
+			return false
+		}
+
+		return false
+	}
+
+	// ツリー全体の整理を実行
+	prune(root)
+
+	SetActiveTree(active)
+	root.Resize(screen.Get().RootRect())
+} */
+
+// delete-other-windows
+// C-x 1
+// Kill all views but active
+/* func (tr *Tree) DeleteOtherWindows_original() {
 	active := GetActiveTree()
 	root := GetRootTree()
 	if active == nil || root == nil {
@@ -772,12 +1059,12 @@ func (tr *Tree) DeleteOtherWindows() {
 	// 他の leaf を破棄する
 	root.ForEachLeaf(func(l Leaf) bool {
 		if l != keep {
-			closeLeaf(l)
+			cleanupAfterCloseLeaf(l)
 		}
 		return true
 	})
 
-	// root を leaf ノードに戻す
+	// keep 以外の leaf が消える
 	root.left = nil
 	root.right = nil
 	root.top = nil
@@ -788,9 +1075,10 @@ func (tr *Tree) DeleteOtherWindows() {
 	SetActiveTree(root)
 	root.Resize(screen.Get().RootRect())
 }
+*/
 
 // 破棄対象の leaf に後始末が必要な場合のみ実装する
-func closeLeaf(l Leaf) {
+func cleanupAfterCloseLeaf(l Leaf) {
 	if l == nil {
 		return
 	}
@@ -810,31 +1098,24 @@ func (tr *Tree) NextInCycle() {
 // nextInCycle returns the next view
 // after v, eventually cycling
 // through all views.
-func (tr *Tree) nextInCycle() (ret *Tree) {
-
+func (tr *Tree) nextInCycle() *Tree {
 	root := tr
 	for root.parent != nil {
 		root = root.parent
 	}
 
-	// find our number
-	var k, our int
+	var nodes []*Tree
 	root.Traverse(func(w *Tree) {
-		if w == tr {
-			our = k
-		}
-		k++
+		nodes = append(nodes, w)
 	})
-	// return the view after us
-	tot := k
-	k = 0
-	root.Traverse(func(w *Tree) {
-		if k == (our+1)%tot {
-			ret = w
-		}
-		k++
-	})
-	return
+	if len(nodes) == 0 {
+		return nil
+	}
+
+	// If tr is not in the tree (index -1), start from the first leaf
+	// rather than silently treating tr as the first one.
+	idx := slices.Index(nodes, tr)
+	return nodes[(idx+1)%len(nodes)]
 }
 
 // Implement overlay

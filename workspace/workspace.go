@@ -10,6 +10,7 @@
 package workspace
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -18,8 +19,10 @@ import (
 	"strings"
 
 	"github.com/ge-editor/gecore/overlay"
+	"github.com/ge-editor/gecore/pathscope"
 	"github.com/ge-editor/gecore/screen"
 	"github.com/ge-editor/gecore/tree"
+	"github.com/ge-editor/utils"
 )
 
 type Workspace struct {
@@ -37,6 +40,13 @@ type Workspace struct {
 	// file and a new one was assigned: the file has to be written again, or
 	// the next load would assign yet another ID.
 	idRegenerated bool
+
+	// scope is the PathScope setting (settings.pathScope in the file). See
+	// Scope, SetScope and NewMatcher.
+	scope pathscope.Settings
+	// extraSettings keeps the keys of settings that this version does not
+	// know, so that saving the workspace does not drop them.
+	extraSettings map[string]json.RawMessage
 
 	// RootTrees are references only. The owner is tree.RootTrees.
 	RootTrees []*tree.RootTreeStruct
@@ -133,7 +143,9 @@ func nameConflict(name, filePath string, self *Workspace) bool {
 			continue
 		}
 		// A file that was not chosen (the initial value) counts as no file.
-		if !x.PathDecided() || filePath == "" || isInitialPath(filePath) || x.FilePath == filePath {
+		// Same file: on a file system that ignores case, "A.ge-workspace" and
+		// "a.ge-workspace" are one file.
+		if !x.PathDecided() || filePath == "" || isInitialPath(filePath) || utils.IsSameFile(x.FilePath, filePath) {
 			return true
 		}
 	}

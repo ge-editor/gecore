@@ -11,8 +11,9 @@ type promptCmd struct {
 	args func(string) []string
 }
 
-func (c *promptCmd) Name() string        { return c.name }
-func (c *promptCmd) Aliases() []string   { return nil }
+func (c *promptCmd) Name() string { return c.name }
+
+// func (c *promptCmd) Aliases() []string   { return nil }
 func (c *promptCmd) Description() string { return "d" }
 func (c *promptCmd) Execute(context.Context, []string) (bool, error) {
 	return true, nil

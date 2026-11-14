@@ -56,6 +56,15 @@ func SetDefault(w *Workspace) {
 	if id := readFileID(path); validID(id) && id != w.ID && !idTaken(id, w) {
 		w.ID = id
 	}
+	// The settings (the PathScope) are carried over from the saved one too.
+	if s, extra, ok := readFileSettings(path); ok {
+		if w.scope.IsZero() {
+			w.scope = s
+		}
+		if w.extraSettings == nil {
+			w.extraSettings = extra
+		}
+	}
 	forgetSnapshot(path)
 	w.setFilePath(path)
 }

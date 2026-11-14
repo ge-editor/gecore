@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ge-editor/gecore/state"
@@ -93,8 +94,9 @@ type MarksStruct struct {
 	marks   []Mark // marks.json に保存するのはこれだけ
 	deleted []string
 
-	dirty bool
-	stop  chan struct{}
+	dirty   bool
+	version atomic.Uint64 // bumped on every change of the list
+	stop    chan struct{}
 	done  chan struct{}
 }
 
@@ -142,10 +144,46 @@ func (m *MarksStruct) Remove(target Mark) bool {
 		m.marks = m.marks[:len(m.marks)-1]
 
 		m.dirty = true
+		m.version.Add(1)
 		return true
 	}
 
 	return false
+}
+
+// RemoveByIDs removes every mark that has one of the ids, and returns how
+// many were removed. Remove takes out the first mark with an id only; this
+// also takes out the others, should an id be in the list more than once.
+func (m *MarksStruct) RemoveByIDs(ids ...string) int {
+	if len(ids) == 0 {
+		return 0
+	}
+	target := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		target[id] = true
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	kept := make([]Mark, 0, len(m.marks))
+	removed := 0
+	for _, v := range m.marks {
+		if !target[v.GetID()] {
+			kept = append(kept, v)
+			continue
+		}
+		m.deleted = append(m.deleted, v.GetID())
+		removed++
+	}
+	if removed == 0 {
+		return 0
+	}
+
+	m.marks = kept
+	m.dirty = true
+	m.version.Add(1)
+	return removed
 }
 
 // Mark に UUID を設定した後、Marks に追加する
@@ -164,6 +202,7 @@ func (m *MarksStruct) Add(newMark Mark) Mark {
 
 	m.marks = append([]Mark{newMark}, m.marks...)
 	m.dirty = true
+	m.version.Add(1)
 
 	return newMark
 }
@@ -202,6 +241,7 @@ func (m *MarksStruct) UpdateWorkspaceFilePath(id, path string) int {
 		if adopted {
 			changed++
 			m.dirty = true
+			m.version.Add(1)
 		}
 	}
 	return changed
@@ -236,6 +276,14 @@ func (m *MarksStruct) Update(fn func(list []Mark) ([]Mark, bool)) {
 
 	m.marks = list
 	m.dirty = true
+	m.version.Add(1)
+}
+
+// Version changes whenever the list of marks changes (a mark is added,
+// removed or moved). Callers that keep something derived from the marks use
+// it to know when to rebuild it.
+func (m *MarksStruct) Version() uint64 {
+	return m.version.Load()
 }
 
 func (m *MarksStruct) Items() []Mark {

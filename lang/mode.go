@@ -37,4 +37,8 @@ type Mode interface {
 
 	RecommendedColumnWidth() int
 	PageLineCount() int
+
+	// ShowTrailingWhitespace reports whether spaces and tabs at the end of
+	// a line are drawn with a background color in this mode.
+	ShowTrailingWhitespace() bool
 }

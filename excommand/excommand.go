@@ -6,7 +6,7 @@ import "context"
 
 type ExCommand interface {
 	Name() string
-	Aliases() []string
+	// Aliases() []string
 	Description() string
 
 	// handled=false なら親、または次の registry に解決を続ける。

@@ -24,7 +24,7 @@ func NewOpMode(viewNames string) *OpMode {
 	}
 }
 
-func (v OpMode) Draw() {
+func (v OpMode) Draw(isSwitchWindow bool) {
 	// draw views names
 	name := 0
 	GetRootTree().Traverse(func(leaf *Tree) {
@@ -41,6 +41,10 @@ func (v OpMode) Draw() {
 		v.Screen.DrawLabel(r, &screen.LabelParams{Style: theme.ColorDefault.Background(bg), Align: screen.AlignCenter, Ellipsis: 0, CenterEllipsis: false}, string(v.viewNames[name]))
 		name++
 	})
+
+	if isSwitchWindow {
+		return
+	}
 
 	// draw splitters
 	// r = v.tree.Rect

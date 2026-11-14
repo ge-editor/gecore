@@ -26,5 +26,8 @@ type LeafType interface {
 	SetCtx(*LeafContext)
 	CancelManager() *gecore.EventCancelManager
 
-	Opener(destination, behavior string, flag OpenerFlag, data any, f func(handled bool, err error))
+	// DispatchLeafRequest receives a request routed to this registered leaf type. The
+	// request's concrete payload type determines the operation supported by
+	// the implementation.
+	DispatchLeafRequest(destination, behavior string, flag OpenerFlag, data any, f func(handled bool, err error))
 }

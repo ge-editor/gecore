@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/uuid"
 
 	"github.com/ge-editor/gecore/state"
+	"github.com/ge-editor/utils"
 )
 
 // initialDirName is the directory (inside the state directory) of the files
@@ -68,8 +68,9 @@ func isInitialPath(path string) bool {
 	if err != nil {
 		return false
 	}
-	rel, err := filepath.Rel(dir, abs)
-	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	// Inside the directory, but not the directory itself. Case is ignored when
+	// the file system ignores it, in both checks.
+	return utils.IsWithinDir(abs, dir) && !utils.IsSameFile(abs, dir)
 }
 
 // readFileID returns the ID stored in a workspace file, or "".

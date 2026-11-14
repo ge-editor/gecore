@@ -18,7 +18,7 @@ func (r *Registry) Register(cmd ExCommand) {
 	defer r.mu.Unlock()
 
 	r.commands[cmd.Name()] = cmd
-	for _, alias := range cmd.Aliases() {
+	/* for _, alias := range cmd.Aliases() {
 		r.commands[alias] = cmd
-	}
+	} */
 }

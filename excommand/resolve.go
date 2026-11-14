@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// Candidates removes shadowed command names and aliases from an already
-// ordered list. Callers provide commands in resolution order, nearest first.
+// Candidates removes shadowed command names from an already ordered list.
+// Callers provide commands in resolution order, nearest first.
 func Candidates(commands []ExCommand) []ExCommand {
 	seen := make(map[string]bool)
 	result := make([]ExCommand, 0, len(commands))
@@ -16,23 +16,23 @@ func Candidates(commands []ExCommand) []ExCommand {
 			continue
 		}
 
-		// Keep the first command for each name/alias: callers order nearest first.
-		names := append([]string{cmd.Name()}, cmd.Aliases()...)
+		// Keep the first command for each name: callers order nearest first.
+		// names := append([]string{cmd.Name()}, cmd.Aliases()...)
 		shadowed := false
-		for _, name := range names {
-			if seen[name] {
-				shadowed = true
-				break
-			}
+		//for _, name := range names {
+		if seen[cmd.Name()] {
+			shadowed = true
+			break
 		}
+		//}
 		if shadowed {
 			continue
 		}
 
 		result = append(result, cmd)
-		for _, name := range names {
-			seen[name] = true
-		}
+		//for _, name := range names {
+		seen[cmd.Name()] = true
+		//}
 	}
 	return result
 }
@@ -70,10 +70,10 @@ func matchesName(cmd ExCommand, name string) bool {
 	if strings.EqualFold(cmd.Name(), name) {
 		return true
 	}
-	for _, alias := range cmd.Aliases() {
+	/* for _, alias := range cmd.Aliases() {
 		if strings.EqualFold(alias, name) {
 			return true
 		}
-	}
+	} */
 	return false
 }

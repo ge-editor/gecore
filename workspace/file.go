@@ -47,7 +47,7 @@ func MarshalFile(w *Workspace, filePath string) ([]byte, error) {
 		ID:        w.ID,
 		Name:      w.Name,
 		RootTrees: make(map[string]*tree.LayoutNode, len(w.RootTrees)),
-		Settings:  json.RawMessage(`{}`),
+		Settings:  w.marshalSettings(),
 	}
 	for _, dir := range w.Directories {
 		p := dir
@@ -161,6 +161,7 @@ func LoadFile(path string) (*Workspace, error) {
 	if err != nil {
 		return nil, err
 	}
+	w.loadSettings(f.Settings)
 	names := orderedNames(f)
 	rollback := func(cause error) (*Workspace, error) {
 		for _, rt := range w.RootTrees {

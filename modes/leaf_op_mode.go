@@ -15,13 +15,15 @@ type LeafOpMode struct {
 	ModeManager *mode.Manager
 	RootNode    *keychord.RootNode
 	*tree.OpMode
+	SwitchWindow bool
 }
 
-func NewLeafOpMode(modeManager *mode.Manager, viewNames string, key func(*keychord.RootNode, *LeafOpMode)) mode.Mode {
+func NewLeafOpMode(modeManager *mode.Manager, viewNames string, key func(*keychord.RootNode, *LeafOpMode), switchWindow bool) mode.Mode {
 	vm := &LeafOpMode{
-		ModeManager: modeManager,
-		RootNode:    keychord.NewRootNode(),
-		OpMode:      tree.NewOpMode(viewNames),
+		ModeManager:  modeManager,
+		RootNode:     keychord.NewRootNode(),
+		OpMode:       tree.NewOpMode(viewNames),
+		SwitchWindow: switchWindow,
 	}
 
 	// ★ ここでキー定義を注入
@@ -42,15 +44,37 @@ func (o *LeafOpMode) Keys() *keychord.RootNode {
 
 func (o *LeafOpMode) WillEnter() {
 	o.RootNode.Reset()
+	gecore.Echo.SetUsage(leafOpUsage(o.SwitchWindow)...)
 }
 
 func (o *LeafOpMode) WillExit() {
-
+	gecore.Echo.ClearUsage()
 }
 
 func (o *LeafOpMode) Draw(ctx context.Context) {
-	gecore.Echo.AddText("view operations mode")
-	o.OpMode.Draw()
+	o.OpMode.Draw(o.SwitchWindow)
+}
+
+// leafOpUsage is what the echo line shows in the mode: its name and the keys
+// (see the bindings in ge/keyset.go). The mode that switches the window is
+// left after a window is selected.
+func leafOpUsage(switchWindow bool) []string {
+	if switchWindow {
+		return []string{
+			"Switch window",
+			"<label>:select",
+			"h:hsplit", "v:vsplit", "k:close",
+			"C-g:quit",
+		}
+	}
+	return []string{
+		"Window ops",
+		"<label>:select",
+		"h:hsplit", "v:vsplit", "k:close",
+		"t/r/b/l:insert at edge", "s:swap direction",
+		"Arrows:resize",
+		"C-g:quit",
+	}
 }
 
 func (o *LeafOpMode) CurrentMode() mode.Mode {
@@ -131,10 +155,18 @@ func (e LeafOpMode) NearestHSplitStepResizeDecrement() {
 }
 
 func (e LeafOpMode) SelectName(tev tcell.EventKey) bool {
+	modeQuit := func() {
+		if e.SwitchWindow {
+			e.ModeManager.Cancel()
+		}
+	}
+
 	leaf := e.OpMode.SelectName(tev.Str())
 	if leaf != nil {
 		tree.SetActiveTree(leaf)
+		modeQuit()
 		return true
 	}
+	modeQuit()
 	return false
 }

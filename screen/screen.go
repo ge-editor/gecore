@@ -21,7 +21,7 @@ func init() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	screen.EnableMouse()
+	// screen.EnableMouse()
 }
 
 type Alignment int
@@ -75,8 +75,23 @@ func (s *Screen) HideCursor() {
 	s.Screen.ShowCursor(-1, -1)
 }
 
+// cellScreen is what FillRect needs of the screen: tcell.Screen has both.
+type cellScreen interface {
+	Get(x, y int) (string, tcell.Style, int)
+	SetContent(x, y int, primary rune, combining []rune, style tcell.Style)
+}
+
 func (s *Screen) FillRect(dest Rect, r rune, style tcell.Style) {
-	dest = s.Rect.Intersection(dest)
+	fillRect(s.Screen, s.Rect, dest, r, style)
+}
+
+// fillRect fills dest (clipped to bounds) with r in style.
+//
+// A wide character that is cut by an edge of dest is replaced by spaces, so
+// that no half of it is left. It writes only on the row of the cut: the left
+// neighbor of the first cell and the right neighbor of the last one.
+func fillRect(scr cellScreen, bounds, dest Rect, r rune, style tcell.Style) {
+	dest = bounds.Intersection(dest)
 	if dest.Width <= 0 || dest.Height <= 0 {
 		return
 	}
@@ -94,28 +109,29 @@ func (s *Screen) FillRect(dest Rect, r rune, style tcell.Style) {
 	for y := startY; y <= endY; y++ {
 		// --- 左端のクリーンアップ ---
 		// startX に書き込むことで、startX-1 にある幅2の文字の右半分が消えるのを防ぐ
-		if _, st, w := s.Screen.Get(startX-1, y); w == 2 {
-			s.Screen.SetContent(startX-1, y, ' ', nil, st)
+		if _, st, w := scr.Get(startX-1, y); w == 2 {
+			scr.SetContent(startX-1, y, ' ', nil, st)
 		}
 
 		// --- 右端のクリーンアップ ---
-		// endX (またはその付近) に書き込むことで、endX+1 にある幅2の文字が分断されるのを防ぐ
-		// 以下のループ内で処理しても良いが、事前に境界をクリアするのが確実
-		if _, st, w := s.Screen.Get(endX, y); w == 2 {
-			s.Screen.SetContent(endX, y, ' ', nil, style)
-			s.Screen.SetContent(endX, y+1, ' ', nil, st)
+		// endX から始まる幅2の文字は、右半分が endX+1 (dest の外) にある。
+		// 同じ行の endX+1 を空白にして、文字が分断されるのを防ぐ。
+		// (endX, y+1 ではない: 下の行は、すでに描画済みかもしれない)
+		if _, st, w := scr.Get(endX, y); w == 2 {
+			scr.SetContent(endX, y, ' ', nil, style)
+			scr.SetContent(endX+1, y, ' ', nil, st)
 		}
 
 		// --- メインの描画ループ ---
 		for x := startX; x <= endX; {
 			// 残りの幅が step 未満なら、文字を置けないので空白で埋める
 			if x+step-1 > endX {
-				s.Screen.SetContent(x, y, ' ', nil, style)
+				scr.SetContent(x, y, ' ', nil, style)
 				x++
 				continue
 			}
 
-			s.Screen.SetContent(x, y, r, nil, style)
+			scr.SetContent(x, y, r, nil, style)
 			x += step // 文字幅分だけ進める
 		}
 	}
@@ -134,29 +150,15 @@ type LabelParams struct {
 	CenterEllipsis bool
 }
 
-// func (m *Screen) DrawLabel(dest utils.Rect, params *LabelParams, text []byte) {
 func (s *Screen) DrawLabel(dest Rect, params *LabelParams, text string) {
-	// gelog.Info("DrawLabel, text = '%s', param='%#v'. dest='%#v'", string(text), params, dest)
-
-	/*
-		// 高さを 1 にする
-		if dest.Height != 1 {
-			dest.Height = 1
-		}
-
-		// m と dest の重なった領域を取得
-		dest = m.Rect.Intersection(dest)
-		if dest.Height == 0 || dest.Width == 0 {
-			return
-		}
-	*/
 
 	ellipsisWidth := utils.RuneWidth(params.Ellipsis)
 	runs := []rune(text)
 
 	ellipsisFlag := false
 	var leftWidth, rightWidth int
-	var leftStr, rightStr string
+	var leftRunes, rightRunes []rune
+
 	for leftIndex, rightIndex := 0, len(runs)-1; leftIndex <= rightIndex; {
 		if (params.Align == AlignRight || params.CenterEllipsis) && leftWidth > rightWidth {
 			ch := runs[rightIndex]
@@ -166,7 +168,7 @@ func (s *Screen) DrawLabel(dest Rect, params *LabelParams, text string) {
 				break
 			}
 			rightWidth += w
-			rightStr = string(ch) + rightStr
+			rightRunes = append([]rune{ch}, rightRunes...)
 			rightIndex--
 		} else {
 			ch := runs[leftIndex]
@@ -176,35 +178,45 @@ func (s *Screen) DrawLabel(dest Rect, params *LabelParams, text string) {
 				break
 			}
 			leftWidth += w
-			leftStr += string(ch)
+			leftRunes = append(leftRunes, ch)
 			leftIndex++
 		}
 	}
+
 	if ellipsisFlag {
 		// Delete letters to make room for ellipsis
 		for leftWidth+rightWidth+ellipsisWidth > dest.Width {
 			if leftWidth > rightWidth {
-				leftWidth -= utils.RuneWidth(rune(leftStr[len(leftStr)-1]))
-				leftStr = leftStr[:len(leftStr)-1]
+				if len(leftRunes) == 0 {
+					break
+				}
+				ch := leftRunes[len(leftRunes)-1]
+				leftWidth -= utils.RuneWidth(ch)
+				leftRunes = leftRunes[:len(leftRunes)-1]
 			} else {
-				rightWidth -= utils.RuneWidth(rune(rightStr[0]))
-				rightStr = rightStr[1:]
+				if len(rightRunes) == 0 {
+					break
+				}
+				ch := rightRunes[0]
+				rightWidth -= utils.RuneWidth(ch)
+				rightRunes = rightRunes[1:]
 			}
 		}
 	}
 
 	max := dest.Width - leftWidth - rightWidth // for space
-	str := ""
+	var str string
 	if ellipsisFlag {
 		max -= ellipsisWidth
 		if params.CenterEllipsis {
-			str = leftStr + string(params.Ellipsis) + rightStr
+			str = string(leftRunes) + string(params.Ellipsis) + string(rightRunes)
 		} else {
-			str = leftStr + rightStr + string(params.Ellipsis)
+			str = string(leftRunes) + string(rightRunes) + string(params.Ellipsis)
 		}
 	} else {
-		str = leftStr + rightStr
+		str = string(leftRunes) + string(rightRunes)
 	}
+
 	if params.Align == AlignCenter {
 		max1 := max / 2
 		for i := 0; i < max1; i++ {
