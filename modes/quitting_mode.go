@@ -67,11 +67,31 @@ func (qm *QuittingMode) WillEnter() {
 	if qm.QuitGuardResolver == nil {
 		return
 	}
+	// The usage first: the resolver may finish at once (nothing to ask)
+	// and quit the app.
+	gecore.Echo.SetUsage(quittingUsage()...)
 	qm.QuitGuardResolver.WillEnter()
 }
 
 func (qm *QuittingMode) WillExit() {
-	qm.QuitGuardResolver.WillExit()
+	if qm == nil {
+		return
+	}
+	gecore.Echo.ClearUsage()
+	if qm.QuitGuardResolver != nil {
+		qm.QuitGuardResolver.WillExit()
+	}
+}
+
+// quittingUsage is what the echo line shows in the mode. The keys of each
+// question (y/n for a modified buffer, a file name for a workspace) are in
+// the prompt of the minibuffer; what is common to all of them is the way out.
+func quittingUsage() []string {
+	return []string{
+		"Quitting",
+		"answer the prompt",
+		"C-g:cancel",
+	}
 }
 
 func (qm *QuittingMode) Draw(ctx context.Context) {

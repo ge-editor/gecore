@@ -93,3 +93,45 @@ func TestFillRectBlanksWideCharacterCutOnTheLeft(t *testing.T) {
 		t.Errorf("the left half was left: %q", r)
 	}
 }
+
+// The line number area is filled after the text, so the cell right of it may
+// be drawn already (the first column of the text). It is not the right half of
+// the wide character that was in the old gutter, whatever the old style was:
+// it must stay as it was drawn.
+func TestFillRectKeepsWhatWasDrawnRightOfAWideCharacter(t *testing.T) {
+	popup := tcell.StyleDefault.Background(tcell.ColorRed) // the style of the popupmenu
+	text := tcell.StyleDefault.Foreground(tcell.ColorGreen)
+
+	g := newGrid(20, 3)
+	g.wide(9, 1, popup) // the left half, in the last cell of the gutter
+	g.ch[[2]int{10, 1}] = 'a'
+	g.st[[2]int{10, 1}] = text // the text, drawn after the popupmenu
+
+	bounds := Rect{X: 0, Y: 0, Width: 20, Height: 3}
+	fillRect(g, bounds, Rect{X: 2, Y: 1, Width: 8, Height: 1}, 0, tcell.StyleDefault)
+
+	if r, st := g.ch[[2]int{10, 1}], g.st[[2]int{10, 1}]; r != 'a' || st != text {
+		t.Errorf("the text was overwritten: %q in %v", r, st)
+	}
+	if r := g.ch[[2]int{9, 1}]; r == '日' {
+		t.Error("the left half was left")
+	}
+}
+
+// What the wide character left there is still blanked: the cell is its right
+// half, in its style.
+func TestFillRectStillBlanksTheRightHalfThatIsLeft(t *testing.T) {
+	popup := tcell.StyleDefault.Background(tcell.ColorRed)
+
+	g := newGrid(20, 3)
+	g.wide(9, 1, popup)
+	g.ch[[2]int{10, 1}] = 0 // the right half of a wide character
+	g.st[[2]int{10, 1}] = popup
+
+	bounds := Rect{X: 0, Y: 0, Width: 20, Height: 3}
+	fillRect(g, bounds, Rect{X: 2, Y: 1, Width: 8, Height: 1}, 0, tcell.StyleDefault)
+
+	if r := g.ch[[2]int{10, 1}]; r != ' ' {
+		t.Errorf("the right half was left: %q", r)
+	}
+}

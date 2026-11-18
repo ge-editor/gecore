@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+
+	"github.com/ge-editor/utils"
 )
 
 var (
@@ -117,7 +119,7 @@ func StateDir() (string, error) {
 
 	case "linux":
 		if v := os.Getenv("XDG_STATE_HOME"); v != "" {
-			return filepath.Join(v, "ge"), nil
+			return filepath.Join(v, utils.GetExecutableBaseName()), nil
 		}
 
 		home, err := os.UserHomeDir()
@@ -125,7 +127,7 @@ func StateDir() (string, error) {
 			return "", err
 		}
 
-		return filepath.Join(home, ".local", "state", "ge"), nil
+		return filepath.Join(home, ".local", "state", utils.GetExecutableBaseName()), nil
 
 	case "darwin":
 		home, err := os.UserHomeDir()
@@ -137,7 +139,7 @@ func StateDir() (string, error) {
 			home,
 			"Library",
 			"Application Support",
-			"ge",
+			utils.GetExecutableBaseName(),
 		), nil
 
 	case "windows":
@@ -146,7 +148,7 @@ func StateDir() (string, error) {
 			base = os.Getenv("APPDATA")
 		}
 
-		return filepath.Join(base, "ge"), nil
+		return filepath.Join(base, utils.GetExecutableBaseName()), nil
 	}
 
 	return os.UserConfigDir()

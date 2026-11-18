@@ -2,6 +2,7 @@ package screen
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/gdamore/tcell/v3"
 
@@ -9,19 +10,26 @@ import (
 	"github.com/ge-editor/utils"
 )
 
-var screen *Screen
+var (
+	screen     *Screen
+	screenOnce sync.Once
+)
 
+// Get returns the screen, creating it (and putting the terminal into the
+// full-screen mode) on the first call. It is deliberately not done in
+// init(): "ge --remote ..." is a plain command line tool that imports this
+// package too, and must leave the terminal alone.
+// Get returns nil when the terminal cannot be initialized.
 func Get() *Screen {
+	screenOnce.Do(func() {
+		var err error
+		screen, err = newScreen()
+		if err != nil {
+			fmt.Println(err)
+		}
+		// screen.EnableMouse()
+	})
 	return screen
-}
-
-func init() {
-	var err error
-	screen, err = newScreen()
-	if err != nil {
-		fmt.Println(err)
-	}
-	// screen.EnableMouse()
 }
 
 type Alignment int
@@ -117,9 +125,19 @@ func fillRect(scr cellScreen, bounds, dest Rect, r rune, style tcell.Style) {
 		// endX から始まる幅2の文字は、右半分が endX+1 (dest の外) にある。
 		// 同じ行の endX+1 を空白にして、文字が分断されるのを防ぐ。
 		// (endX, y+1 ではない: 下の行は、すでに描画済みかもしれない)
+		//
+		// ただし endX+1 が、その文字の右半分のまま (同じスタイル) のときだけ。
+		// 行番号の帯を、テキストの後で塗ることがある (drawLineNumber)。
+		// そのとき endX+1 はテキスト領域の先頭の桁で、もう描画済みである。
+		// ここを古い文字のスタイルの空白で上書きすると、popupmenu が全角文字
+		// を帯とテキストの境目に描いていた場合に、閉じた後も反転した空白が
+		// 残り、行頭の文字が消える。
 		if _, st, w := scr.Get(endX, y); w == 2 {
+			_, next, _ := scr.Get(endX+1, y)
 			scr.SetContent(endX, y, ' ', nil, style)
-			scr.SetContent(endX+1, y, ' ', nil, st)
+			if next == st {
+				scr.SetContent(endX+1, y, ' ', nil, st)
+			}
 		}
 
 		// --- メインの描画ループ ---

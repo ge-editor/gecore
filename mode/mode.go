@@ -3,12 +3,27 @@ package mode
 import (
 	"context"
 
+	"github.com/gdamore/tcell/v3"
+
 	"github.com/ge-editor/keychord"
 )
 
 // OverMinibuffer を実装したモードは、minibuffer が active でもキーを先に受け取る。
 type InputOverMinibuffer interface {
 	OverMinibuffer() bool
+}
+
+// PassThrough を実装したモードは、キーごとに「このキーでモードを抜け、そのキーは
+// モードが無かったときと同じように処理させる」を選べる。
+//
+// PassThrough(ev) が true を返すと、モードは抜けられ (Cancel)、ev は
+// ひとつ下の層 (モードがなくなれば rootKey、続いて leaf) に渡る。false なら
+// ev はモード自身のキー定義で処理される。
+//
+// モードが自分のキー定義の中で抜けて同じキーを再送する方法だと、キーボード
+// マクロの記録に同じキーが 2 回入ってしまう。これはそれを避けるためのもの。
+type PassThrough interface {
+	PassThrough(ev tcell.EventKey) bool
 }
 
 // Mode は「キー定義＋描画＋ライフサイクル」を持つ編集モード

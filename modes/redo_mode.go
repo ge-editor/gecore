@@ -5,6 +5,7 @@ package modes
 import (
 	"context"
 
+	"github.com/ge-editor/gecore"
 	"github.com/ge-editor/gecore/mode"
 	"github.com/ge-editor/keychord"
 )
@@ -33,9 +34,24 @@ func (m *RedoMode) OverMinibuffer() bool { return true }
 // --- Mode interface ---
 func (m *RedoMode) Name() string             { return "RedoMode" }
 func (m *RedoMode) Keys() *keychord.RootNode { return m.RootNode }
-func (m *RedoMode) WillEnter()               {}
-func (m *RedoMode) WillExit()                {}
 func (m *RedoMode) Draw(ctx context.Context) {}
+
+// WillEnter shows the usage in the echo line until the mode is left.
+func (m *RedoMode) WillEnter() { gecore.Echo.SetUsage(redoUsage()...) }
+
+// WillExit clears the usage.
+func (m *RedoMode) WillExit() { gecore.Echo.ClearUsage() }
+
+// redoUsage is what the echo line shows in the mode: its name and the keys
+// (see the key handler in ge/keyset_editorleaf_common.go). Arrow keys and
+// keys with a modifier leave the mode as well.
+func redoUsage() []string {
+	return []string{
+		"Redo",
+		"/:redo",
+		"C-g:quit",
+	}
+}
 
 // --- Mode pointer ---
 func (m *RedoMode) CurrentMode() mode.Mode { return m }

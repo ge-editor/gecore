@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/ge-editor/gecore/remote"
 )
 
 // Arguments groups
@@ -39,7 +41,33 @@ var (
 	StdinRead bool
 	Stdin     []byte
 	StdinErr  error
+
+	// Remote is set by "ge --remote ..." and "ge --list-instances". With
+	// Enabled, the arguments below were parsed by remote.ParseArgs instead
+	// of the editor rules: "--work" / "--root-tree" take a workspace /
+	// root tree NAME, files go to Remote.Files (absolute), and none of the
+	// other variables here are filled (see remote.ParseArgs). main() hands Remote to
+	// remote.Run and exits without starting the editor.
+	Remote remote.Options
 )
+
+// remoteOnlyFlags are options that mean nothing without --remote.
+var remoteOnlyFlags = map[string]bool{
+	"--get-buffer":           true,
+	"--new-buffer-stdin":     true,
+	"--replace-buffer-stdin": true,
+	"--insert-stdin":         true,
+}
+
+// isRemoteMode reports whether the command line selects the remote CLI.
+func isRemoteMode() bool {
+	for _, a := range os.Args[1:] {
+		if a == "--remote" || strings.HasPrefix(a, "--remote=") || a == "--list-instances" {
+			return true
+		}
+	}
+	return false
+}
 
 // FilePosition is a cursor position given on the command line. Line and Col
 // are 1-based (Col counts characters); 0 means not specified.
@@ -73,6 +101,14 @@ func init() {
 	// Parese arguments
 	explicitStdin := false
 	var pending FilePosition // "+LINE[:COLUMN]" applies to the next file (or "-")
+	remoteMode := isRemoteMode()
+	if remoteMode {
+		// The command line belongs to the remote client (the same parser as
+		// the ge-remote command). Standard input is read by the client, only
+		// for the *-stdin options.
+		Remote = remote.ParseArgs(os.Args[1:])
+		return
+	}
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		if arg == "--default-work" {
@@ -97,6 +133,13 @@ func init() {
 		} else if arg == "-" {
 			explicitStdin = true
 			StdinPosition, pending = pending, FilePosition{}
+		} else if remoteOnlyFlags[arg] {
+			ArgErrors = append(ArgErrors, arg+" requires --remote")
+		} else if arg == "--root-tree" || strings.HasPrefix(arg, "--root-tree=") {
+			ArgErrors = append(ArgErrors, "--root-tree requires --remote")
+			if arg == "--root-tree" && i+1 < len(os.Args) {
+				i++ // its value is not a file
+			}
 		} else if info, err := os.Stat(arg); err == nil && info.IsDir() {
 			WorkSpaces = append(WorkSpaces, arg)
 		} else if strings.HasPrefix(arg, "-") {

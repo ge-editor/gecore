@@ -38,9 +38,23 @@ func NewMacroMode(mm *mode.Manager, key func(*keychord.RootNode, *MacroModeStruc
 // --- Mode interface ---
 func (m *MacroModeStruct) Name() string             { return "MacroMode" }
 func (m *MacroModeStruct) Keys() *keychord.RootNode { return m.RootNode }
-func (m *MacroModeStruct) WillEnter()               {}
-func (m *MacroModeStruct) WillExit()                {}
 func (m *MacroModeStruct) Draw(ctx context.Context) {}
+
+// WillEnter shows the usage in the echo line until the mode is left. The
+// mode is entered by C-x e and left by C-g (see ge/keyset.go).
+func (m *MacroModeStruct) WillEnter() { Echo.SetUsage(macroUsage()...) }
+
+// WillExit clears the usage.
+func (m *MacroModeStruct) WillExit() { Echo.ClearUsage() }
+
+// macroUsage is what the echo line shows in the mode: its name and the keys.
+func macroUsage() []string {
+	return []string{
+		"Keyboard macro",
+		"e:repeat",
+		"C-g:quit",
+	}
+}
 
 // --- Macro functions ---
 func (m *MacroModeStruct) StartRecording() {
