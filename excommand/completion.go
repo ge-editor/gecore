@@ -30,7 +30,7 @@ func Complete(commands []ExCommand, input string) []Candidate {
 		if _, ok := seen[key]; ok {
 			continue
 		}
-		if !utils.ContainsAllCharacters(cmd.Name(), input) {
+		if !utils.ContainsOrderedAllCharacters(cmd.Name(), input) {
 			continue
 		}
 
@@ -69,7 +69,7 @@ func Complete(commands []ExCommand, input string) []Candidate {
 			if _, ok := seen[key]; ok {
 				continue
 			}
-			if !utils.ContainsAllCharacters(value, input) {
+			if !utils.ContainsOrderedAllCharacters(value, input) {
 				continue
 			}
 

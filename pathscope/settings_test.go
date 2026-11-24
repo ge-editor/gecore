@@ -95,3 +95,14 @@ func TestSettingsClone(t *testing.T) {
 		t.Error("Clone shares the map with the original")
 	}
 }
+
+func TestSearchFeatureDefaultsToCurrent(t *testing.T) {
+	var s Settings
+	if got := s.For(FeatureSearch); got != Current {
+		t.Fatalf("builtin = %s, want current", got)
+	}
+	s.Set(FeatureSearch, Workspaces)
+	if got := s.For(FeatureSearch); got != Workspaces {
+		t.Fatalf("set = %s, want workspaces", got)
+	}
+}

@@ -15,18 +15,24 @@ const (
 	FeatureMark Feature = "mark"
 	// FeatureRecent is the list of recently opened files (ESC x recent-open).
 	FeatureRecent Feature = "recent"
+	// FeatureSearch is the full text search of the explorer: which
+	// directories are searched. Current is the directories of the current
+	// workspace; Workspaces and All are those of every open workspace (a
+	// search has no "everything" beyond the workspaces).
+	FeatureSearch Feature = "search"
 )
 
 // defaultKey is the key of Settings.Default in the JSON object. It cannot be
 // used as a feature name.
 const defaultKey = "default"
 
-var features = []Feature{FeatureMark, FeatureRecent}
+var features = []Feature{FeatureMark, FeatureRecent, FeatureSearch}
 
 // builtinDefault keeps today's behavior when nothing is configured.
 var builtinDefault = map[Feature]Kind{
 	FeatureMark:   All,
 	FeatureRecent: All,
+	FeatureSearch: Current,
 }
 
 // Features returns the features that can have a scope.

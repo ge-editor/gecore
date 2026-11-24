@@ -653,6 +653,31 @@ func (tr *Tree) NearestHSplit() *Tree {
 	return nil
 }
 
+// StepResizeWindow makes the window tr larger by n steps (smaller if n is
+// negative), like enlarge-window / shrink-window of Emacs: horizontal is the
+// width, otherwise the height. The nearest split of that direction above tr
+// is moved, to the side that grows tr whichever side of the split tr is on.
+// Nothing happens when there is no such split.
+func (tr *Tree) StepResizeWindow(horizontal bool, n int) {
+	child := tr
+	for p := child.parent; p != nil; child, p = p, p.parent {
+		switch {
+		case horizontal && p.left != nil:
+			if child != p.left {
+				n = -n // tr is the right one: its edge is moved to the left
+			}
+			p.StepResize(n)
+			return
+		case !horizontal && p.top != nil:
+			if child != p.top {
+				n = -n // tr is the bottom one: its edge is moved up
+			}
+			p.StepResize(n)
+			return
+		}
+	}
+}
+
 func (tr *Tree) oneStep() float32 {
 	if tr.top != nil {
 		return 1.0 / float32(tr.Height)
