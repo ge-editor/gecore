@@ -146,3 +146,33 @@ func (CurrentRootOverlay) Draw(ctx context.Context) bool {
 	}
 	return false
 }
+
+// TreeOfLeaf returns the pane of the displayed RootTree that shows leaf, or
+// nil when no pane of it does (the leaf is closed, parked, or in a RootTree
+// that is not displayed).
+func TreeOfLeaf(leaf Leaf) *Tree {
+	rt := currentRoot.Load()
+	if rt == nil || rt.Root == nil || leaf == nil {
+		return nil
+	}
+	return rt.Root.treeOfLeaf(leaf)
+}
+
+func (tr *Tree) treeOfLeaf(leaf Leaf) *Tree {
+	switch {
+	case tr.left != nil:
+		if t := tr.left.treeOfLeaf(leaf); t != nil {
+			return t
+		}
+		return tr.right.treeOfLeaf(leaf)
+	case tr.top != nil:
+		if t := tr.top.treeOfLeaf(leaf); t != nil {
+			return t
+		}
+		return tr.bottom.treeOfLeaf(leaf)
+	}
+	if tr.leaf == leaf {
+		return tr
+	}
+	return nil
+}

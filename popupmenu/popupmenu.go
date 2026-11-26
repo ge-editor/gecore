@@ -246,6 +246,30 @@ func (p *PopupmenuStruct) CursorHome() {
 	p.itemIndex = 0
 }
 
+// CursorPageForward moves the selection down by one page: the number of rows
+// that are shown. It stops at the last item.
+func (p *PopupmenuStruct) CursorPageForward() {
+	if len(p.items) == 0 {
+		return
+	}
+	p.itemIndex = min(p.itemIndex+p.pageSize(), len(p.items)-1)
+}
+
+// CursorPageBackward moves the selection up by one page: the number of rows
+// that are shown. It stops at the first item.
+func (p *PopupmenuStruct) CursorPageBackward() {
+	if len(p.items) == 0 {
+		return
+	}
+	p.itemIndex = max(p.itemIndex-p.pageSize(), 0)
+}
+
+// pageSize is the number of items to move for one page: the rows that are
+// shown, and at least one (the size is 0 until the first layout).
+func (p *PopupmenuStruct) pageSize() int {
+	return max(p.contentHeight(), 1)
+}
+
 func (p *PopupmenuStruct) CursorEnd() {
 	p.itemIndex = len(p.items) - 1
 }
